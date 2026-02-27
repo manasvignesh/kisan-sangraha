@@ -18,6 +18,7 @@ function RootLayoutNav() {
       <Stack.Screen name="storage/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="provider/index" options={{ headerShown: false }} />
+      <Stack.Screen name="+not-found" options={{ headerShown: false }} />
     </Stack>
   );
 }

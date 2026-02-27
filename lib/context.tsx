@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Booking, MOCK_FACILITIES, StorageFacility } from "@/constants/data";
+import { Booking, MOCK_FACILITIES, StorageFacility, TRANSLATIONS } from "@/constants/data";
 
 type Language = "en" | "hi" | "te";
 type UserRole = "farmer" | "provider";
@@ -126,9 +126,8 @@ export function useApp() {
 
 export function useTranslation() {
   const { language } = useApp();
-  const { TRANSLATIONS } = require("@/constants/data");
   return useCallback(
-    (key: string) => TRANSLATIONS[language]?.[key] || TRANSLATIONS.en[key] || key,
+    (key: string) => TRANSLATIONS[language]?.[key] || TRANSLATIONS["en"]?.[key] || key,
     [language]
   );
 }
