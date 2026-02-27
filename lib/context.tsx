@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useMemo, useCallback, useEf
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TRANSLATIONS } from "@/constants/data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getApiUrl } from "./query-client";
-import type { Facility, BookingType, User } from "@shared/schema";
+import { getApiUrl, apiFetch } from "./query-client";
+import type { Facility, BookingType, User } from "../shared/schema";
 
 type Language = "en" | "hi" | "te";
 type UserRole = "farmer" | "provider";
@@ -51,7 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: sessionUser } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
-      const res = await fetch(new URL("/api/auth/me", getApiUrl()).toString());
+      const res = await apiFetch(new URL("/api/auth/me", getApiUrl()).toString(), { credentials: "include" });
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch session");
       return res.json();
@@ -73,7 +73,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: facilities = [] } = useQuery<Facility[]>({
     queryKey: ["/api/facilities"],
     queryFn: async () => {
-      const res = await fetch(new URL("/api/facilities", getApiUrl()).toString());
+      const res = await apiFetch(new URL("/api/facilities", getApiUrl()).toString(), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch facilities");
       return res.json();
     },
@@ -83,7 +83,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: bookings = [] } = useQuery<BookingType[]>({
     queryKey: ["/api/bookings"],
     queryFn: async () => {
-      const res = await fetch(new URL("/api/bookings", getApiUrl()).toString());
+      const res = await apiFetch(new URL("/api/bookings", getApiUrl()).toString(), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch bookings");
       return res.json();
     },
@@ -93,12 +93,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Auth Mutations
   const loginMutation = useMutation({
     mutationFn: async (credentials: any) => {
-      const res = await fetch(new URL("/api/auth/login", getApiUrl()).toString(), {
+      const res = await apiFetch(new URL("/api/auth/login", getApiUrl()).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(err.message || "Login failed");
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -110,12 +114,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: any) => {
-      const res = await fetch(new URL("/api/auth/register", getApiUrl()).toString(), {
+      const res = await apiFetch(new URL("/api/auth/register", getApiUrl()).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(err.message || "Registration failed");
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -125,7 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await fetch(new URL("/api/auth/logout", getApiUrl()).toString(), { method: "POST" });
+      await apiFetch(new URL("/api/auth/logout", getApiUrl()).toString(), { method: "POST", credentials: "include" });
     },
     onSuccess: () => {
       setUser(null);
@@ -136,10 +144,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Data Mutations
   const createBookingMutation = useMutation({
     mutationFn: async (bookingData: any) => {
-      const res = await fetch(new URL("/api/bookings", getApiUrl()).toString(), {
+      const res = await apiFetch(new URL("/api/bookings", getApiUrl()).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingData),
+        credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -152,10 +161,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateFacilityMutation = useMutation({
     mutationFn: async ({ id, ...data }: { id: string; availableCapacity?: number; pricePerKgPerDay?: number }) => {
-      const res = await fetch(new URL(`/api/facilities/${id}`, getApiUrl()).toString(), {
+      const res = await apiFetch(new URL(`/api/facilities/${id}`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
+        credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
@@ -167,10 +177,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateBookingStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(new URL(`/api/bookings/${id}/status`, getApiUrl()).toString(), {
+      const res = await apiFetch(new URL(`/api/bookings/${id}/status`, getApiUrl()).toString(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
+        credentials: "include",
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

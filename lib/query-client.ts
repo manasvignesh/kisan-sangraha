@@ -1,7 +1,17 @@
-import { fetch } from "expo/fetch";
+import { Platform } from "react-native";
+// On web, use the native browser fetch (avoids Expo dev server interception).
+// On native mobile, fall back to expo/fetch.
+const nativeFetch = typeof globalThis.fetch !== "undefined" ? globalThis.fetch.bind(globalThis) : require("expo/fetch").fetch;
+export const apiFetch = Platform.OS === "web" ? nativeFetch : nativeFetch;
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 export function getApiUrl(): string {
+  // If we are running locally in Expo Dev mode, bypass the browser origin
+  // so the frontend (8081) directly talks to the backend (5000).
+  if (__DEV__) {
+    return "http://localhost:5000";
+  }
+
   // If we're executing in the browser (e.g. Vercel deployed web output)
   if (typeof window !== "undefined" && window.location && window.location.origin) {
     return window.location.origin;
@@ -33,7 +43,7 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const res = await fetch(url.toString(), {
+  const res = await apiFetch(url.toString(), {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -53,7 +63,7 @@ export const getQueryFn: <T>(options: {
       const baseUrl = getApiUrl();
       const url = new URL(queryKey.join("/") as string, baseUrl);
 
-      const res = await fetch(url.toString(), {
+      const res = await apiFetch(url.toString(), {
         credentials: "include",
       });
 
