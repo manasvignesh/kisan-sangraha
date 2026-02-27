@@ -259,49 +259,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ─── WEATHER (with mock fallback) ────────────────────────────────────────────
+  // ─── WEATHER (WeatherAPI.com + mock fallback) ────────────────────────────────
   app.get("/api/weather", async (req, res) => {
     const { lat, lon } = req.query;
+    const key = process.env.WEATHER_API_KEY;
 
-    // Real weather API hook — if WEATHER_API_KEY is set, use it
-    if (process.env.WEATHER_API_KEY && lat && lon) {
+    if (key && lat && lon) {
       try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${process.env.WEATHER_API_KEY}`;
+        // WeatherAPI.com endpoint
+        const url = `https://api.weatherapi.com/v1/current.json?key=${key}&q=${lat},${lon}&aqi=no`;
         const r = await fetch(url);
         if (r.ok) {
           const d = await r.json();
-          const temp = Math.round(d.main?.temp || 30);
-          const condition = d.weather?.[0]?.description || "Clear";
-          const humidity = d.main?.humidity || 40;
-          const suggestion = temp > 32
-            ? "High temperature — cold storage strongly recommended to prevent spoilage."
-            : humidity > 70
-              ? "High humidity detected — ensure airtight storage for grain produce."
-              : "Weather conditions are moderate. Standard storage is sufficient.";
-          return res.json({ temperature: temp, condition, humidity, suggestion });
+          const temp = Math.round(d.current?.temp_c ?? 30);
+          const condition = d.current?.condition?.text || "Clear";
+          const humidity = d.current?.humidity ?? 45;
+          const feelsLike = Math.round(d.current?.feelslike_c ?? temp);
+
+          let suggestion: string;
+          if (temp > 35 || feelsLike > 37) {
+            suggestion = `Extreme heat (${temp}°C, feels ${feelsLike}°C) — cold storage strongly recommended. Produce may spoil within 12–24 hours without refrigeration.`;
+          } else if (humidity > 75) {
+            suggestion = `High humidity (${humidity}%) detected — grain and pulses require airtight cold storage to prevent mould.`;
+          } else if (temp > 28) {
+            suggestion = `Warm conditions (${temp}°C) — fruits and vegetables should be stored within 48 hours for best quality.`;
+          } else {
+            suggestion = `Comfortable weather (${temp}°C, ${humidity}% humidity) — standard storage adequate. Book in advance for better rates.`;
+          }
+
+          return res.json({ temperature: temp, feelsLike, condition, humidity, suggestion });
         }
+        const errText = await r.text().catch(() => r.status.toString());
+        console.error("WeatherAPI error:", errText);
       } catch (e) {
+        console.error("Weather fetch error:", e);
         // Fall through to mock
       }
     }
 
-    // Mock fallback (always available)
+    // Mock fallback (always available — rotates by hour)
     const mockAdvisories = [
-      { temperature: 36, condition: "Hot & Clear", humidity: 28, suggestion: "Extreme heat expected — cold storage strongly recommended to prevent spoilage within 24 hours." },
-      { temperature: 29, condition: "Partly Cloudy", humidity: 55, suggestion: "Moderate conditions — fruits and vegetables should be stored within 48 hours for best quality." },
-      { temperature: 22, condition: "Mild & Breezy", humidity: 65, suggestion: "Comfortable weather — adequate time to arrange storage. Book early for better pricing." },
+      { temperature: 36, condition: "Hot & Sunny", humidity: 28, suggestion: "Extreme heat — cold storage strongly recommended. Produce may spoil within 24 hours." },
+      { temperature: 29, condition: "Partly Cloudy", humidity: 55, suggestion: "Moderate conditions — store fruits and vegetables within 48 hours for best quality." },
+      { temperature: 22, condition: "Mild & Breezy", humidity: 62, suggestion: "Comfortable weather — book in advance for better pricing." },
     ];
-    const advisory = mockAdvisories[new Date().getHours() % mockAdvisories.length];
-    res.json(advisory);
+    res.json(mockAdvisories[new Date().getHours() % mockAdvisories.length]);
   });
 
-  // ─── AI RECOMMENDATION (with rule-based fallback) ─────────────────────────────
+  // ─── AI RECOMMENDATION (NVIDIA NIM + rule-based fallback) ────────────────────
   app.post("/api/ai/recommend", async (req, res) => {
     const { temperature, humidity, cropType, quantity } = req.body;
+    const apiKey = process.env.AI_API_KEY;
+    const model = process.env.AI_MODEL || "nvidia/llama-3.1-nemotron-70b-instruct";
 
-    // Hook for real AI API
-    if (process.env.AI_API_KEY) {
-      // TODO: Insert Gemini/OpenAI call here when key is provided
+    if (apiKey) {
+      try {
+        const prompt = `You are an agricultural cold storage advisor in India. A farmer needs advice.
+
+Conditions:
+- Crop/Produce: ${cropType || "mixed produce"}
+- Quantity: ${quantity || "unknown"} kg
+- Temperature: ${temperature || "unknown"}°C
+- Humidity: ${humidity || "unknown"}%
+
+Provide a 1-2 sentence practical recommendation about whether they need cold storage urgently, and what type is best. Be concise and specific. Mention cost if relevant (₹0.35–0.55/kg/day for cold storage in India).`;
+
+        const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.7,
+            max_tokens: 150,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const recommendation = data.choices?.[0]?.message?.content?.trim();
+          if (recommendation) {
+            return res.json({ recommendation, source: "ai" });
+          }
+        } else {
+          console.error("NVIDIA NIM error:", response.status, await response.text().catch(() => ""));
+        }
+      } catch (e) {
+        console.error("AI fetch error:", e);
+        // Fall through to rule-based
+      }
     }
 
     // Rule-based fallback
