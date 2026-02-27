@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
-import { facilities, bookings, insights } from "@shared/schema";
+import { facilities, bookings, insights } from "../shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      let userBookings: import("@shared/schema").BookingType[] = [];
+      let userBookings: import("../shared/schema").BookingType[] = [];
       if (req.user.role === "farmer") {
         userBookings = await db.select().from(bookings).where(eq(bookings.userId, req.user.id)).orderBy(desc(bookings.startDate));
       } else {
