@@ -12,6 +12,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useApp } from "@/lib/context";
 import Colors from "@/constants/colors";
 import { getApiUrl, apiFetch } from "@/lib/query-client";
 
@@ -20,6 +21,7 @@ interface Props {
     humidity?: number;
     cropType?: string;
     quantity?: number;
+    selectedDate?: Date;  // drives re-render when date changes in FarmerDashboard
 }
 
 type Status = "loading" | "ai" | "fallback" | "error";
@@ -41,7 +43,8 @@ function getRuleBasedRecommendation(temperature: number, humidity: number, cropT
     return `Good conditions (${temperature}°C) — standard ventilated storage is sufficient. Book early for better rates.`;
 }
 
-export default function AiRecommendationCard({ temperature = 30, humidity = 55, cropType = "produce", quantity }: Props) {
+export default function AiRecommendationCard({ temperature = 30, humidity = 55, cropType = "produce", quantity, selectedDate }: Props) {
+
     const [recommendation, setRecommendation] = useState<string>("");
     const [status, setStatus] = useState<Status>("loading");
 
@@ -98,7 +101,8 @@ export default function AiRecommendationCard({ temperature = 30, humidity = 55, 
 
         fetchRecommendation();
         return () => { cancelled = true; };
-    }, [temperature, humidity, cropType, quantity]);
+    }, [temperature, humidity, cropType, quantity, selectedDate]);
+
 
     const isAi = status === "ai";
     const isLoading = status === "loading";

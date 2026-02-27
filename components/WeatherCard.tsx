@@ -6,26 +6,32 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiUrl, apiFetch } from "@/lib/query-client";
 import { useApp } from "@/lib/context";
 
-export default function WeatherCard() {
+
+interface Props {
+  selectedDate?: Date;
+}
+
+export default function WeatherCard({ selectedDate }: Props) {
   const { userLocation } = useApp();
+  const today = new Date();
+  const isToday = !selectedDate || selectedDate.toDateString() === today.toDateString();
 
   const { data: weather, isLoading } = useQuery({
-    queryKey: ["/api/weather", userLocation?.lat, userLocation?.lon],
+    queryKey: ["/api/weather", userLocation?.lat, userLocation?.lon, selectedDate?.toDateString()],
     queryFn: async () => {
       const url = new URL("/api/weather", getApiUrl());
       if (userLocation?.lat) {
         url.searchParams.set("lat", userLocation.lat.toString());
         url.searchParams.set("lon", userLocation.lon.toString());
       }
-      const res = await apiFetch(url.toString(), { credentials: "include" });
-      if (!res.ok) {
-        // Never break the UI — return a hard-coded fallback
-        return { temperature: 33, condition: "Warm", humidity: 45, suggestion: "Moderate conditions — consider cold storage for perishables." };
+      if (!isToday && selectedDate) {
+        url.searchParams.set("date", selectedDate.toISOString().split("T")[0]);
       }
+      const res = await apiFetch(url.toString(), { credentials: "include" });
+      if (!res.ok) return { temperature: 33, condition: "Warm", humidity: 45, suggestion: "Moderate conditions — consider cold storage for perishables." };
       return res.json();
     },
-    // Always keep stale data visible instead of showing loading state on refetch
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   if (isLoading || !weather) {
