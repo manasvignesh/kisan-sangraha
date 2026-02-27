@@ -26,18 +26,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- CREATE FACILITY (Provider Only) ---
+  app.post("/api/facilities", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "provider") {
+      return res.status(403).json({ error: "Only providers can create facilities." });
+    }
+    try {
+      const {
+        name, location, type, totalCapacity, availableCapacity,
+        pricePerKgPerDay, contactPhone, operatingHours, certifications, minBookingDays, amenities
+      } = req.body;
+
+      if (!name || !location || !totalCapacity || !pricePerKgPerDay) {
+        return res.status(400).json({ error: "Name, location, capacity, and price are required." });
+      }
+
+      const [facility] = await db.insert(facilities).values({
+        ownerId: req.user.id,
+        name: name.trim(),
+        location: location.trim(),
+        type: Array.isArray(type) ? type : [type || "Cold"],
+        totalCapacity: Number(totalCapacity),
+        availableCapacity: Number(availableCapacity ?? totalCapacity),
+        pricePerKgPerDay: Number(pricePerKgPerDay),
+        contactPhone: contactPhone || "N/A",
+        operatingHours: operatingHours || "8AM - 8PM",
+        certifications: certifications || [],
+        minBookingDays: Number(minBookingDays || 1),
+        amenities: amenities || [],
+        verified: false,
+        rating: 0,
+        reviewCount: 0,
+        distance: 0,
+      }).returning();
+
+      res.status(201).json(facility);
+    } catch (e) {
+      console.error("Create facility error:", e);
+      res.status(500).json({ error: "Failed to create facility." });
+    }
+  });
+
   app.put("/api/facilities/:id", async (req, res) => {
-    // Requires Authentication logic (Assuming user is logged in as Provider - handled via passport session)
     if (!req.isAuthenticated() || req.user.role !== "provider") {
       return res.status(403).json({ error: "Only providers can update facilities." });
     }
     try {
-      // Allow modifying pricing and capacity
-      const { pricePerKgPerDay, availableCapacity } = req.body;
-      const [updated] = await db.update(facilities).set({
-        pricePerKgPerDay,
-        availableCapacity
-      }).where(eq(facilities.id, req.params.id)).returning();
+      const updates: Record<string, any> = {};
+      if (req.body.pricePerKgPerDay !== undefined) updates.pricePerKgPerDay = Number(req.body.pricePerKgPerDay);
+      if (req.body.availableCapacity !== undefined) updates.availableCapacity = Number(req.body.availableCapacity);
+      if (req.body.totalCapacity !== undefined) updates.totalCapacity = Number(req.body.totalCapacity);
+      if (req.body.name !== undefined) updates.name = req.body.name;
+      if (req.body.location !== undefined) updates.location = req.body.location;
+
+      const [updated] = await db.update(facilities).set(updates).where(eq(facilities.id, req.params.id)).returning();
       res.json(updated);
     } catch (e) {
       res.status(500).json({ error: "Failed to update facility." });

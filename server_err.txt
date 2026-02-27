@@ -1,0 +1,69 @@
+﻿node.exe : C:\Users\Man
+as\OneDrive\Desktop\Bui
+ld-Production-Mobile\se
+rver\db.ts:6
+At C:\Program Files\nod
+ejs\npx.ps1:29 char:3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : 
+NotSpecified: (C:\    
+Users\Manas\...\server 
+   \db.ts:6:String) 
+[], R    emoteException
+    + 
+FullyQualifiedErrorI   
+ d : NativeCommandError
+ 
+    throw new 
+Error("DATABASE_URL 
+must be set");
+          ^
+
+
+Error: DATABASE_URL 
+must be set
+    at <anonymous> (C:\
+Users\Manas\OneDrive\De
+sktop\Build-Production-
+Mobile\server\db.ts:6:1
+1)
+    at 
+Object.<anonymous> (C:\
+Users\Manas\OneDrive\De
+sktop\Build-Production-
+Mobile\server\db.ts:14:
+43)
+    at Module._compile 
+(node:internal/modules/
+cjs/loader:1730:14)
+    at 
+Object.transformer (C:\
+Users\Manas\OneDrive\De
+sktop\Build-Production-
+Mobile\node_modules\tsx
+\dist\register-D46fvsV_
+.cjs:3:1104)
+    at Module.load (nod
+e:internal/modules/cjs/
+loader:1465:32)
+    at Function._load (
+node:internal/modules/c
+js/loader:1282:12)
+    at TracingChannel.t
+raceSync (node:diagnost
+ics_channel:322:14)
+    at wrapModuleLoad (
+node:internal/modules/c
+js/loader:235:24)
+    at Module.require (
+node:internal/modules/c
+js/loader:1487:12)
+    at require (node:in
+ternal/modules/helpers:
+135:16)
+
+Node.js v22.15.0

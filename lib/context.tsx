@@ -22,6 +22,7 @@ interface AppContextValue {
   facilities: Facility[];
   bookings: BookingType[];
   addBooking: (data: any) => Promise<void>;
+  addFacility: (data: any) => Promise<void>;
   updateFacilityCapacity: (facilityId: string, quantityBooked: number) => Promise<void>;
   setFacilityAvailability: (facilityId: string, newAvailableCapacity: number) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: string) => Promise<void>;
@@ -175,6 +176,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const addFacilityMutation = useMutation({
+    mutationFn: async (facilityData: any) => {
+      const res = await apiFetch(new URL("/api/facilities", getApiUrl()).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(facilityData),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "Failed to create facility");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/facilities"] });
+    },
+  });
+
   const updateBookingStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const res = await apiFetch(new URL(`/api/bookings/${id}/status`, getApiUrl()).toString(), {
@@ -214,6 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       facilities,
       bookings,
       addBooking: async (data: any) => { await createBookingMutation.mutateAsync(data); },
+      addFacility: async (data: any) => { await addFacilityMutation.mutateAsync(data); },
       updateFacilityCapacity: async (facilityId: string, quantityBooked: number) => {
         // Frontend optimistic approach fallback handled by backend POST booking
         console.log("Capacity will be updated directly via the booking payload logic on the backend.");
