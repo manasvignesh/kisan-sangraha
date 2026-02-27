@@ -15,9 +15,20 @@ const LANGUAGES = [
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { userProfile, language, setLanguage, bookings, role, setRole } = useApp();
+  const { userProfile, language, setLanguage, bookings, role, setRole, logout } = useApp();
   const t = useTranslation();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // The root layout's useEffect will automatically redirect to /login
+      // when isAuthenticated becomes false
+      router.replace("/login");
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
+  };
 
   const activeBookings = bookings.filter((b) => b.status === "active");
   const totalQuantity = activeBookings.reduce((sum, b) => sum + b.quantity, 0);
@@ -158,6 +169,13 @@ export default function ProfileScreen() {
           <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
         </Pressable>
       </View>
+
+      {/* ── Logout ── */}
+      <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+        <Feather name="log-out" size={18} color={Colors.danger} />
+        <Text style={styles.logoutBtnText}>Logout</Text>
+      </Pressable>
+
     </ScrollView>
   );
 }
@@ -321,5 +339,23 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.borderLight,
     marginHorizontal: 16,
+  },
+  logoutBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 24,
+    backgroundColor: Colors.dangerLight,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: Colors.danger + "30",
+  },
+  logoutBtnText: {
+    fontSize: 15,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.danger,
   },
 });

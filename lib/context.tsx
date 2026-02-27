@@ -235,9 +235,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       bookings,
       addBooking: async (data: any) => { await createBookingMutation.mutateAsync(data); },
       addFacility: async (data: any) => { await addFacilityMutation.mutateAsync(data); },
-      updateFacilityCapacity: async (facilityId: string, quantityBooked: number) => {
-        // Frontend optimistic approach fallback handled by backend POST booking
-        console.log("Capacity will be updated directly via the booking payload logic on the backend.");
+      updateFacilityCapacity: async (facilityId: string, newPrice: number) => {
+        await updateFacilityMutation.mutateAsync({ id: facilityId, pricePerKgPerDay: newPrice });
       },
       setFacilityAvailability: async (facilityId: string, newAvailableCapacity: number) => {
         await updateFacilityMutation.mutateAsync({ id: facilityId, availableCapacity: newAvailableCapacity });
