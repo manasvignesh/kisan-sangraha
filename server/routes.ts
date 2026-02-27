@@ -4,12 +4,95 @@ import { db } from "./db";
 import { facilities, bookings, insights } from "../shared/schema";
 import { eq, desc } from "drizzle-orm";
 
+// ─── Seed Demo Facilities (used when DB is empty) ─────────────────────────────
+const DEMO_FACILITIES = [
+  {
+    ownerId: null,
+    name: "Pune Agri Cold Hub",
+    location: "Hadapsar, Pune",
+    type: ["Cold", "Multi-purpose"] as string[],
+    totalCapacity: 80000,
+    availableCapacity: 62000,
+    pricePerKgPerDay: 0.45,
+    contactPhone: "+91 98765 43210",
+    operatingHours: "6AM - 10PM",
+    certifications: ["FSSAI", "ISO 22000"] as string[],
+    minBookingDays: 1,
+    amenities: ["24/7 Security", "Loading Bay", "Temperature Monitoring"] as string[],
+    verified: true,
+    rating: 4.7,
+    reviewCount: 132,
+    distance: 2.3,
+  },
+  {
+    ownerId: null,
+    name: "Maharashtra FreshoStore",
+    location: "Nashik, Maharashtra",
+    type: ["Frozen"] as string[],
+    totalCapacity: 50000,
+    availableCapacity: 28000,
+    pricePerKgPerDay: 0.55,
+    contactPhone: "+91 90123 45678",
+    operatingHours: "Open 24/7",
+    certifications: ["FSSAI"] as string[],
+    minBookingDays: 3,
+    amenities: ["Backup Power", "Humidity Control"] as string[],
+    verified: true,
+    rating: 4.4,
+    reviewCount: 89,
+    distance: 5.1,
+  },
+  {
+    ownerId: null,
+    name: "GreenVault Agristorage",
+    location: "Aurangabad, Maharashtra",
+    type: ["Cold"] as string[],
+    totalCapacity: 40000,
+    availableCapacity: 38000,
+    pricePerKgPerDay: 0.38,
+    contactPhone: "+91 77654 32190",
+    operatingHours: "8AM - 8PM",
+    certifications: [] as string[],
+    minBookingDays: 1,
+    amenities: ["Loading Bay"] as string[],
+    verified: false,
+    rating: 4.1,
+    reviewCount: 41,
+    distance: 8.6,
+  },
+];
+
+async function ensureSeedFacilities() {
+  try {
+    const existing = await db.select().from(facilities);
+    if (existing.length === 0) {
+      await db.insert(facilities).values(DEMO_FACILITIES as any);
+      console.log("✓ Seeded 3 demo facilities");
+    }
+  } catch (e) {
+    console.error("Seed error (non-fatal):", e);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  // --- FACILITIES ---
+  // Seed demo data on startup
+  await ensureSeedFacilities();
+
+  // ─── FACILITIES ──────────────────────────────────────────────────────────────
   app.get("/api/facilities", async (req, res) => {
     try {
-      const allFacilities = await db.select().from(facilities);
+      let allFacilities = await db.select().from(facilities);
+
+      // Filter by ownerId if provided (for provider dashboard)
+      const { ownerId } = req.query;
+      if (ownerId && typeof ownerId === "string") {
+        allFacilities = allFacilities.filter((f) => f.ownerId === ownerId);
+      }
+
+      // Sort by distance (ascending) for farmer view
+      allFacilities.sort((a, b) => (a.distance ?? 99) - (b.distance ?? 99));
+
       res.json(allFacilities);
     } catch (e) {
       res.status(500).json({ error: "Failed to fetch facilities." });
@@ -26,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- CREATE FACILITY (Provider Only) ---
+  // ─── CREATE FACILITY (Provider Only) ─────────────────────────────────────────
   app.post("/api/facilities", async (req, res) => {
     if (!req.isAuthenticated() || req.user.role !== "provider") {
       return res.status(403).json({ error: "Only providers can create facilities." });
@@ -86,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- BOOKINGS ---
+  // ─── BOOKINGS ─────────────────────────────────────────────────────────────────
   app.post("/api/bookings", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "You must be logged in to book." });
@@ -95,7 +178,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { facilityId, facilityName, facilityLocation, quantity, duration, totalCost, pricePerKgPerDay, storageType } = req.body;
 
-      // 1. Fetch Facility constraints to ensure real capacity exists
       const [facility] = await db.select().from(facilities).where(eq(facilities.id, facilityId));
       if (!facility) return res.status(404).json({ error: "Facility not found" });
 
@@ -103,15 +185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Requested quantity exceeds available capacity." });
       }
 
-      // 2. Perform capacity reduction on backend explicitly
-      const [updatedFacility] = await db.update(facilities).set({
-        availableCapacity: facility.availableCapacity - quantity
-      }).where(eq(facilities.id, facilityId)).returning();
-
-      // 3. Create active booking
       const now = new Date();
       const end = new Date(now.getTime() + duration * 24 * 60 * 60 * 1000);
 
+      // Status starts as "pending" — owner must Accept to confirm
       const [booking] = await db.insert(bookings).values({
         userId: req.user.id,
         facilityId,
@@ -124,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storageType,
         startDate: now,
         endDate: end,
-        status: "active"
+        status: "pending",  // ← was "active", now "pending" until owner accepts
       }).returning();
 
       res.status(201).json(booking);
@@ -141,14 +218,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.role === "farmer") {
         userBookings = await db.select().from(bookings).where(eq(bookings.userId, req.user.id)).orderBy(desc(bookings.startDate));
       } else {
-        // Find bookings associated with the provider's facilities
         const providerFacilities = await db.select().from(facilities).where(eq(facilities.ownerId, req.user.id));
         const pids = providerFacilities.map(f => f.id);
-
         if (pids.length > 0) {
-          // Basic fetch, in reality if they have multiple facilities, we should `inArray`
-          // Since we don't have inArray imported, iterating or simple mapping. 
-          // We will fetch all bookings and filter for simplicity for now.
           const allBookings = await db.select().from(bookings).orderBy(desc(bookings.startDate));
           userBookings = allBookings.filter((b) => pids.includes(b.facilityId));
         }
@@ -165,44 +237,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { status } = req.body; // active, completed, cancelled, pending
-      const [booking] = await db.update(bookings).set({ status }).where(eq(bookings.id, req.params.id)).returning();
-      res.json(booking);
+      const { status } = req.body;
+
+      // When accepting, reduce facility capacity
+      if (status === "active") {
+        const [booking] = await db.select().from(bookings).where(eq(bookings.id, req.params.id));
+        if (booking) {
+          const [facility] = await db.select().from(facilities).where(eq(facilities.id, booking.facilityId));
+          if (facility && facility.availableCapacity >= booking.quantity) {
+            await db.update(facilities).set({
+              availableCapacity: facility.availableCapacity - booking.quantity
+            }).where(eq(facilities.id, booking.facilityId));
+          }
+        }
+      }
+
+      const [updatedBooking] = await db.update(bookings).set({ status }).where(eq(bookings.id, req.params.id)).returning();
+      res.json(updatedBooking);
     } catch (e) {
       res.status(500).json({ error: "Failed to update booking status." });
     }
   });
 
-  // --- INSIGHTS & WEATHER LOGIC ---
-  app.get("/api/weather", (req, res) => {
-    // Simulated weather API for Hackathon demo
-    res.json({
-      temperature: 36,
-      condition: "Hot & Clear",
-      humidity: 30,
-      suggestion: "High temperature expected – storing produce recommended"
-    });
+  // ─── WEATHER (with mock fallback) ────────────────────────────────────────────
+  app.get("/api/weather", async (req, res) => {
+    const { lat, lon } = req.query;
+
+    // Real weather API hook — if WEATHER_API_KEY is set, use it
+    if (process.env.WEATHER_API_KEY && lat && lon) {
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${process.env.WEATHER_API_KEY}`;
+        const r = await fetch(url);
+        if (r.ok) {
+          const d = await r.json();
+          const temp = Math.round(d.main?.temp || 30);
+          const condition = d.weather?.[0]?.description || "Clear";
+          const humidity = d.main?.humidity || 40;
+          const suggestion = temp > 32
+            ? "High temperature — cold storage strongly recommended to prevent spoilage."
+            : humidity > 70
+              ? "High humidity detected — ensure airtight storage for grain produce."
+              : "Weather conditions are moderate. Standard storage is sufficient.";
+          return res.json({ temperature: temp, condition, humidity, suggestion });
+        }
+      } catch (e) {
+        // Fall through to mock
+      }
+    }
+
+    // Mock fallback (always available)
+    const mockAdvisories = [
+      { temperature: 36, condition: "Hot & Clear", humidity: 28, suggestion: "Extreme heat expected — cold storage strongly recommended to prevent spoilage within 24 hours." },
+      { temperature: 29, condition: "Partly Cloudy", humidity: 55, suggestion: "Moderate conditions — fruits and vegetables should be stored within 48 hours for best quality." },
+      { temperature: 22, condition: "Mild & Breezy", humidity: 65, suggestion: "Comfortable weather — adequate time to arrange storage. Book early for better pricing." },
+    ];
+    const advisory = mockAdvisories[new Date().getHours() % mockAdvisories.length];
+    res.json(advisory);
   });
 
+  // ─── AI RECOMMENDATION (with rule-based fallback) ─────────────────────────────
+  app.post("/api/ai/recommend", async (req, res) => {
+    const { temperature, humidity, cropType, quantity } = req.body;
+
+    // Hook for real AI API
+    if (process.env.AI_API_KEY) {
+      // TODO: Insert Gemini/OpenAI call here when key is provided
+    }
+
+    // Rule-based fallback
+    let suggestion = "Store produce in cool, dry conditions.";
+    if (temperature > 35) suggestion = `⚠️ Critical: ${cropType || "Produce"} will spoil within 24 hours at ${temperature}°C. Book cold storage immediately.`;
+    else if (temperature > 28) suggestion = `${cropType || "Produce"} (${quantity || "your"} kg) should be refrigerated within 48 hours. Cold storage at ₹0.45–0.55/kg/day is optimal.`;
+    else if (humidity > 70) suggestion = `High humidity (${humidity}%) is risky for grain storage. Ensure airtight cold units.`;
+
+    res.json({ recommendation: suggestion });
+  });
+
+  // ─── INSIGHTS ─────────────────────────────────────────────────────────────────
   app.get("/api/insights", async (req, res) => {
     try {
       const dbInsights = await db.select().from(insights).orderBy(desc(insights.timestamp));
 
-      // Inject dynamic weather insight if no weather insights exist in DB
       const dynamicInsights: any[] = [
         ...dbInsights,
         {
           id: "dyn_w1",
           type: "weather",
           title: "Extreme Heat Alert",
-          message: "High temperature expected – storing produce recommended.",
+          message: "High temperature expected — storing produce recommended.",
           severity: "danger",
           icon: "sun",
+          timestamp: new Date()
+        },
+        {
+          id: "dyn_m1",
+          type: "market",
+          title: "Tomato Prices Rising",
+          message: "Tomato wholesale price up 18% this week. Cold storage can help hold supply.",
+          severity: "info",
+          icon: "trending-up",
           timestamp: new Date()
         }
       ];
 
-      // Remove duplicates by ID (if we wanted to persist dynamic ones) or sort them
       res.json(dynamicInsights);
     } catch (e) {
       res.status(500).json({ error: "Failed to fetch insights." });
@@ -210,6 +347,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }

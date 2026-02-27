@@ -3,15 +3,29 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { useQuery } from "@tanstack/react-query";
+import { getApiUrl, apiFetch } from "@/lib/query-client";
+import { useApp } from "@/lib/context";
 
 export default function WeatherCard() {
+  const { userLocation } = useApp();
+
   const { data: weather, isLoading } = useQuery({
-    queryKey: ["/api/weather"],
+    queryKey: ["/api/weather", userLocation?.lat, userLocation?.lon],
     queryFn: async () => {
-      const res = await fetch("/api/weather");
-      if (!res.ok) throw new Error("Failed to fetch weather");
+      const url = new URL("/api/weather", getApiUrl());
+      if (userLocation?.lat) {
+        url.searchParams.set("lat", userLocation.lat.toString());
+        url.searchParams.set("lon", userLocation.lon.toString());
+      }
+      const res = await apiFetch(url.toString(), { credentials: "include" });
+      if (!res.ok) {
+        // Never break the UI — return a hard-coded fallback
+        return { temperature: 33, condition: "Warm", humidity: 45, suggestion: "Moderate conditions — consider cold storage for perishables." };
+      }
       return res.json();
-    }
+    },
+    // Always keep stale data visible instead of showing loading state on refetch
+    staleTime: 10 * 60 * 1000,
   });
 
   if (isLoading || !weather) {
@@ -22,11 +36,13 @@ export default function WeatherCard() {
     );
   }
 
+  const icon = weather.temperature > 33 ? "sun" : weather.condition?.toLowerCase().includes("rain") ? "cloud-rain" : "cloud";
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.tempSection}>
-          <Feather name="sun" size={22} color={Colors.warning} />
+          <Feather name={icon as any} size={22} color={Colors.warning} />
           <Text style={styles.temp}>{weather.temperature}°C</Text>
           <View style={styles.conditionBadge}>
             <Text style={styles.conditionText}>{weather.condition}</Text>

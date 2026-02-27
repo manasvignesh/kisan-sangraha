@@ -13,6 +13,8 @@ interface AppContextValue {
   setLanguage: (lang: Language) => void;
   user: User | null;
   userProfile: { name: string; location: string };
+  userLocation: { lat: number; lon: number; city: string } | null;
+  locationLoading: boolean;
   role: UserRole;
   setRole: (role: UserRole) => void;
   isAuthenticated: boolean;
@@ -38,6 +40,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [language, setLanguageState] = useState<Language>("en");
   const [user, setUser] = useState<User | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number; city: string } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  // ── Geolocation detection ──
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          // Reverse geocode using a simple city lookup table (no API key needed)
+          // For demo, we use Pune as default and update based on rough lat/lon
+          let city = "Pune, Maharashtra";
+          if (lat > 19.5 && lat < 20.5 && lon > 73.5 && lon < 74.5) city = "Nashik, Maharashtra";
+          else if (lat > 17.5 && lat < 18.5 && lon > 78.0 && lon < 79.0) city = "Hyderabad, Telangana";
+          else if (lat > 12.7 && lat < 13.2 && lon > 77.3 && lon < 77.8) city = "Bangalore, Karnataka";
+          else if (lat > 18.4 && lat < 19.3 && lon > 72.7 && lon < 73.1) city = "Mumbai, Maharashtra";
+          else if (lat > 28.4 && lat < 28.8 && lon > 76.8 && lon < 77.4) city = "Delhi, NCR";
+          else if (lat > 17.2 && lat < 18.0 && lon > 78.3 && lon < 78.9) city = "Hyderabad, Telangana";
+          setUserLocation({ lat, lon, city });
+          setLocationLoading(false);
+        },
+        () => {
+          // Permission denied or unavailable — use default
+          setUserLocation({ lat: 18.5204, lon: 73.8567, city: "Pune, Maharashtra" });
+          setLocationLoading(false);
+        },
+        { timeout: 5000, maximumAge: 60000 }
+      );
+    } else {
+      setUserLocation({ lat: 18.5204, lon: 73.8567, city: "Pune, Maharashtra" });
+      setLocationLoading(false);
+    }
+  }, []);
 
   // Re-hydrate language from storage
   useEffect(() => {
@@ -223,8 +258,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       user,
       userProfile: {
         name: user?.username || "Guest",
-        location: "Pune, Maharashtra" // Mock default for now or pull from real profile if available
+        location: userLocation?.city || "Detecting location...",
       },
+      userLocation,
+      locationLoading,
       role,
       setRole: (r: UserRole) => console.log("Role update not persisting right now:", r),
       isAuthenticated,
@@ -245,7 +282,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await updateBookingStatusMutation.mutateAsync({ id: bookingId, status });
       }
     }),
-    [language, setLanguage, user, role, isAuthenticated, facilities, bookings]
+    [language, setLanguage, user, role, isAuthenticated, facilities, bookings, userLocation, locationLoading]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

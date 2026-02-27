@@ -22,7 +22,7 @@ export default function ProviderDashboard() {
 
     // Incoming bookings for this provider's facilities
     const myFacilityIds = new Set(myFacilities.map((f) => f.id));
-    const pendingBookings = bookings.filter((b) => b.facilityId && myFacilityIds.has(b.facilityId) && b.status === "active");
+    const pendingBookings = bookings.filter((b) => b.facilityId && myFacilityIds.has(b.facilityId) && b.status === "pending");
 
     // ── Facility Registration Modal ──
     const [showAddForm, setShowAddForm] = useState(false);
