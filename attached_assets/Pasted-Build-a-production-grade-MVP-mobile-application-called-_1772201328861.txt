@@ -1,0 +1,148 @@
+Build a production-grade MVP mobile application called “Kisan ColdChain” that helps small and marginal farmers discover, compare, and book nearby cold storage facilities in a transparent and efficient manner to reduce post-harvest losses and improve selling decisions.
+
+The app must directly address the core challenges: lack of visibility into storage capacity, unclear pricing, informal booking processes, poor coordination between farmers and storage providers, and limited access to market and weather insights.
+
+The product should feel like a deployable real-world solution, not a prototype. Focus on intuitive usability, transparency, and decision support for farmers in rural and low-connectivity environments.
+
+---
+
+## PRIMARY USERS
+
+1. Farmers (main users)
+2. Cold Storage Owners / Providers (secondary dashboard)
+
+---
+
+## CORE NAVIGATION STRUCTURE
+
+Bottom navigation with four tabs:
+Home | My Bookings | Insights | Profile
+
+Each tab must be fully functional and populated with meaningful content.
+
+---
+
+## HOME DASHBOARD (Farmer View)
+
+The dashboard should follow this vertical structure:
+
+1. Compact weekly calendar strip showing current date
+2. Weather advisory card with temperature and simple storage suggestion
+3. Nearby Cold Storage Facilities section displaying interactive cards
+
+Each storage card must include:
+
+* Storage name
+* Location and distance
+* Storage type tags (Cold / Frozen / Dairy)
+* Price per kg per day
+* Real-time available capacity
+* Trust badge (Govt Verified / Certified)
+* Rating score
+* Primary CTA: “View & Book”
+
+Availability must be color-coded:
+Green = high availability
+Orange = medium
+Red = low capacity
+
+---
+
+## STORAGE DETAIL & BOOKING FLOW
+
+When a storage card is tapped:
+
+* Show full storage profile
+* Capacity utilization progress bar
+* Transparent price breakdown
+* Certifications and reliability indicators
+* AI recommendation card using weather + market trend logic
+  Example: “High temperature forecast – storing produce for 3–5 days recommended”
+
+Booking flow:
+
+* Input quantity and duration
+* Show dynamic total cost calculation
+* Confirm booking
+* Update capacity in real time
+
+---
+
+## MY BOOKINGS PAGE
+
+Display:
+
+* Active and past storage bookings
+* Quantity stored
+* Duration remaining
+* Status indicators (Active / Completed)
+
+---
+
+## INSIGHTS PAGE (AI DECISION SUPPORT)
+
+Provide actionable farmer insights:
+
+* Weather and disaster risk alerts
+* Market price trend suggestions (store vs sell)
+* Storage demand alerts (high demand warning)
+
+Each insight should be shown as a minimal card with icon + short actionable message.
+
+---
+
+## PROFILE PAGE
+
+Display:
+
+* Farmer name and location
+* Language preference (multilingual support)
+* Booking summary statistics
+* Settings and activity history
+
+---
+
+## COLD STORAGE OWNER DASHBOARD
+
+Separate view for providers to:
+
+* Register facility details (capacity, pricing, certifications)
+* Update real-time availability
+* View incoming booking requests
+* Monitor capacity utilization analytics
+
+---
+
+## AI & SMART FEATURES
+
+Include intelligent decision support:
+
+* Weather-based spoilage risk alerts
+* Disaster warnings (heatwave, heavy rain)
+* Simple market trend advisory
+  These should guide farmers on optimal storage vs selling decisions.
+
+---
+
+## ACCESSIBILITY & RURAL USABILITY
+
+* Multilingual interface (English, Hindi, Telugu)
+* Icon-driven navigation for low-literacy users
+* Large touch-friendly UI elements
+* Offline-friendly design showing last synced availability
+
+---
+
+## DESIGN REQUIREMENTS
+
+* Clean, minimal, iOS-inspired UI
+* Soft muted color palette with subtle green accents
+* Consistent cards, spacing, and typography hierarchy
+* Calm, professional aesthetic suitable for an agri-tech product
+* No empty screens or placeholder components
+
+---
+
+## GOAL
+
+The final MVP should function as a transparent, coordinated cold storage discovery and booking ecosystem that helps farmers reduce post-harvest losses, make data-driven storage decisions, and improve income through better timing of sales.
