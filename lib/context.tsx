@@ -14,6 +14,7 @@ interface AppContextValue {
   user: User | null;
   userProfile: { name: string; location: string };
   role: UserRole;
+  setRole: (role: UserRole) => void;
   isAuthenticated: boolean;
   login: (data: any) => Promise<void>;
   register: (data: any) => Promise<void>;
@@ -194,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         location: "Pune, Maharashtra" // Mock default for now or pull from real profile if available
       },
       role,
+      setRole: (r: UserRole) => console.log("Role update not persisting right now:", r),
       isAuthenticated,
       login: async (d: any) => { await loginMutation.mutateAsync(d); },
       register: async (d: any) => { await registerMutation.mutateAsync(d); },

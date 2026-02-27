@@ -51,7 +51,7 @@ export default function FarmerDashboard() {
             </View>
 
             {facilities.map((facility) => (
-                <StorageCard key={facility.id} facility={facility} />
+                <StorageCard key={facility.id} facility={facility as any} />
             ))}
         </ScrollView>
     );

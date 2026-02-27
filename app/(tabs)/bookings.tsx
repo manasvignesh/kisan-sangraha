@@ -62,7 +62,7 @@ export default function BookingsScreen() {
       ) : (
         <View style={styles.list}>
           {displayedBookings.map((booking) => (
-            <BookingCard key={booking.id} booking={booking} />
+            <BookingCard key={booking.id} booking={booking as any} />
           ))}
         </View>
       )}

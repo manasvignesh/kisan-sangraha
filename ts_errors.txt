@@ -1,0 +1,8 @@
+﻿app/(tabs)/bookings.tsx(65,43): error TS2322: Type '{ id: string; pricePerKgPerDay: number; userId: string; facilityId: string; facilityName: string; facilityLocation: string; quantity: number; duration: number; startDate: Date; endDate: Date; totalCost: number; status: string; storageType: string; }' is not assignable to type 'Booking'.
+  Types of property 'startDate' are incompatible.
+    Type 'Date' is not assignable to type 'string'.
+app/(tabs)/profile.tsx(18,63): error TS2339: Property 'setRole' does not exist on type 'AppContextValue'.
+components/FarmerDashboard.tsx(54,48): error TS2322: Type '{ id: string; name: string; ownerId: string | null; location: string; distance: number; type: string[]; pricePerKgPerDay: number; totalCapacity: number; availableCapacity: number; rating: number; ... 6 more ...; amenities: string[]; }' is not assignable to type 'StorageFacility'.
+  Types of property 'type' are incompatible.
+    Type 'string[]' is not assignable to type '("Cold" | "Frozen" | "Dairy")[]'.
+      Type 'string' is not assignable to type '"Cold" | "Frozen" | "Dairy"'.
