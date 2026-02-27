@@ -227,6 +227,9 @@ function setupErrorHandler(app: express.Application) {
 
 import { setupAuth } from "./auth";
 
+// Vercel serverless export
+let appInstance: express.Application = app;
+
 (async () => {
   setupCors(app);
   setupBodyParsing(app);
@@ -239,14 +242,18 @@ import { setupAuth } from "./auth";
 
   setupErrorHandler(app);
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`express server serving on port ${port}`);
-    },
-  );
+  if (!process.env.VERCEL) {
+    const port = parseInt(process.env.PORT || "5000", 10);
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+      },
+      () => {
+        log(`express server serving on port ${port}`);
+      },
+    );
+  }
 })();
+
+export default appInstance;

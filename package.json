@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "start": "npx expo start",
     "web": "npx expo start --web",
+    "build": "npx expo export -p web",
     "lint": "npx expo lint",
     "lint:fix": "npx expo lint --fix"
   },
