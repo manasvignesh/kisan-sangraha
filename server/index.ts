@@ -98,6 +98,7 @@ function setupRequestLogging(app: express.Application) {
 }
 
 function getAppName(): string {
+  if (process.env.VERCEL) return "Kisan Sangraha";
   try {
     const appJsonPath = path.resolve(process.cwd(), "app.json");
     const appJsonContent = fs.readFileSync(appJsonPath, "utf-8");
@@ -161,6 +162,8 @@ function serveLandingPage({
 }
 
 function configureExpoAndLanding(app: express.Application) {
+  if (process.env.VERCEL) return;
+
   const templatePath = path.resolve(
     process.cwd(),
     "server",
