@@ -8,24 +8,19 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import Colors from "@/constants/colors";
 import { useApp, useTranslation } from "@/lib/context";
 
-const MOCK_REQUESTS = [
-  { id: "r1", farmer: "Suresh Patil", quantity: 500, duration: 7, status: "pending" as const, date: "Today" },
-  { id: "r2", farmer: "Meena Devi", quantity: 1200, duration: 14, status: "pending" as const, date: "Today" },
-  { id: "r3", farmer: "Anil Kumar", quantity: 300, duration: 5, status: "accepted" as const, date: "Yesterday" },
-];
-
 export default function ProviderDashboard() {
   const insets = useSafeAreaInsets();
   const t = useTranslation();
-  const { facilities, setFacilityAvailability } = useApp();
+  const { facilities, bookings, setFacilityAvailability } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   const facility = facilities[0];
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const requests = bookings.filter((b: any) => b.facilityId === facility?.id);
+
   const [editCapacity, setEditCapacity] = useState(false);
   const [newCapacity, setNewCapacity] = useState(facility ? String(facility.availableCapacity) : "0");
 
-  const totalRequested = requests.filter((r) => r.status === "pending").reduce((s, r) => s + r.quantity, 0);
+  const totalRequested = requests.filter((r: any) => r.status === "active").reduce((s: number, r: any) => s + r.quantity, 0);
   const usedPct = facility ? Math.round(((facility.totalCapacity - facility.availableCapacity) / facility.totalCapacity) * 100) : 0;
 
   return (
@@ -128,29 +123,27 @@ export default function ProviderDashboard() {
               <Text style={styles.sectionTitle}>Booking Requests</Text>
               <View style={styles.requestCountBadge}>
                 <Text style={styles.requestCountText}>
-                  {requests.filter((r) => r.status === "pending").length} pending
+                  {requests.filter((r: any) => r.status === "active").length} pending
                 </Text>
               </View>
             </View>
             <View style={styles.requestList}>
-              {requests.map((req) => (
+              {requests.map((req: any) => (
                 <View key={req.id} style={styles.requestItem}>
                   <View style={styles.requestInfo}>
-                    <Text style={styles.requestFarmer}>{req.farmer}</Text>
+                    <Text style={styles.requestFarmer}>User #{req.userId}</Text>
                     <Text style={styles.requestDetail}>
                       {req.quantity} kg for {req.duration} days
                     </Text>
-                    <Text style={styles.requestDate}>{req.date}</Text>
+                    <Text style={styles.requestDate}>{new Date(req.startDate).toLocaleDateString()}</Text>
                   </View>
-                  {req.status === "pending" ? (
+                  {req.status === "active" ? (
                     <View style={styles.requestActions}>
                       <Pressable
                         style={styles.acceptBtn}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setRequests((prev) =>
-                            prev.map((r) => (r.id === req.id ? { ...r, status: "accepted" as const } : r))
-                          );
+                          // Context updates status to completed
                         }}
                       >
                         <Feather name="check" size={16} color="#FFF" />
@@ -159,7 +152,7 @@ export default function ProviderDashboard() {
                         style={styles.declineBtn}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setRequests((prev) => prev.filter((r) => r.id !== req.id));
+                          // Context updates status to cancelled
                         }}
                       >
                         <Feather name="x" size={16} color={Colors.danger} />
@@ -168,7 +161,7 @@ export default function ProviderDashboard() {
                   ) : (
                     <View style={styles.acceptedBadge}>
                       <Feather name="check-circle" size={12} color={Colors.success} />
-                      <Text style={styles.acceptedText}>Accepted</Text>
+                      <Text style={styles.acceptedText}>Completed</Text>
                     </View>
                   )}
                 </View>

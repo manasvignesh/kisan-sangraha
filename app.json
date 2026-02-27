@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Kisan ColdChain",
-    "slug": "kisan-coldchain",
+    "name": "Kisan Sangraha",
+    "slug": "kisan-sangraha",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kisancoldchain",
+    "scheme": "kisansangraha",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.kisancoldchain"
+      "bundleIdentifier": "com.kisansangraha"
     },
     "android": {
-      "package": "com.kisancoldchain",
+      "package": "com.kisansangraha",
       "adaptiveIcon": {
         "backgroundColor": "#E8F5EC",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

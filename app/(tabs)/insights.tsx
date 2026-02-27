@@ -1,20 +1,38 @@
 import React from "react";
-import { StyleSheet, Text, View, ScrollView, Platform } from "react-native";
+import { StyleSheet, Text, View, ScrollView, Platform, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import InsightCard from "@/components/InsightCard";
-import { MOCK_INSIGHTS } from "@/constants/data";
 import { useTranslation } from "@/lib/context";
+import { useQuery } from "@tanstack/react-query";
+import type { InsightType } from "@shared/schema";
 
 export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
   const t = useTranslation();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
-  const weatherInsights = MOCK_INSIGHTS.filter((i) => i.type === "weather");
-  const marketInsights = MOCK_INSIGHTS.filter((i) => i.type === "market");
-  const demandInsights = MOCK_INSIGHTS.filter((i) => i.type === "demand");
+  const { data: insights = [], isLoading } = useQuery<InsightType[]>({
+    queryKey: ["/api/insights"],
+    queryFn: async () => {
+      const res = await fetch("/api/insights");
+      if (!res.ok) throw new Error("Failed to fetch insights");
+      return res.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    )
+  }
+
+  const weatherInsights = insights.filter((i) => i.type === "weather");
+  const marketInsights = insights.filter((i) => i.type === "market");
+  const demandInsights = insights.filter((i) => i.type === "demand");
 
   return (
     <ScrollView

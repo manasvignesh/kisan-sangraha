@@ -2,16 +2,16 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
-import { Insight } from "@/constants/data";
+import type { InsightType } from "@shared/schema";
 
-const SEVERITY_STYLES = {
+const SEVERITY_STYLES: Record<string, any> = {
   info: { bg: Colors.infoLight, border: "rgba(59,130,246,0.12)", iconColor: Colors.info },
   warning: { bg: Colors.warningLight, border: "rgba(245,158,11,0.12)", iconColor: Colors.warning },
   danger: { bg: Colors.dangerLight, border: "rgba(239,68,68,0.12)", iconColor: Colors.danger },
 };
 
-export default function InsightCard({ insight }: { insight: Insight }) {
-  const sev = SEVERITY_STYLES[insight.severity];
+export default function InsightCard({ insight }: { insight: InsightType }) {
+  const sev = SEVERITY_STYLES[insight.severity || "info"];
 
   return (
     <View style={[styles.container, { backgroundColor: sev.bg, borderColor: sev.border }]}>

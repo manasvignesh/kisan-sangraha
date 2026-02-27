@@ -1,11 +1,26 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
-import { MOCK_WEATHER } from "@/constants/data";
+import { useQuery } from "@tanstack/react-query";
 
 export default function WeatherCard() {
-  const weather = MOCK_WEATHER;
+  const { data: weather, isLoading } = useQuery({
+    queryKey: ["/api/weather"],
+    queryFn: async () => {
+      const res = await fetch("/api/weather");
+      if (!res.ok) throw new Error("Failed to fetch weather");
+      return res.json();
+    }
+  });
+
+  if (isLoading || !weather) {
+    return (
+      <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator size="small" color={Colors.warning} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

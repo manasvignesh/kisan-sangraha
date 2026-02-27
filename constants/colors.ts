@@ -30,8 +30,10 @@ const Colors = {
   tabInactive: "#8A9B8E",
   light: {
     text: "#1A1D1A",
+    textMuted: "#8A9B8E",
     background: "#F5F7F5",
     tint: "#1B6B3A",
+    icon: "#5A6B5E",
     tabIconDefault: "#8A9B8E",
     tabIconSelected: "#1B6B3A",
   },

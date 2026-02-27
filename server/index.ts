@@ -225,11 +225,14 @@ function setupErrorHandler(app: express.Application) {
   });
 }
 
+import { setupAuth } from "./auth";
+
 (async () => {
   setupCors(app);
   setupBodyParsing(app);
   setupRequestLogging(app);
 
+  setupAuth(app);
   configureExpoAndLanding(app);
 
   const server = await registerRoutes(app);
@@ -241,7 +244,6 @@ function setupErrorHandler(app: express.Application) {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`express server serving on port ${port}`);

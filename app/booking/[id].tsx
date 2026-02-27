@@ -86,32 +86,25 @@ export default function BookingScreen() {
     );
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!isValid) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const now = new Date();
-    const end = new Date(now);
-    end.setDate(end.getDate() + durationNum);
-
-    const booking: Booking = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      facilityId: facility.id,
-      facilityName: facility.name,
-      facilityLocation: facility.location,
-      quantity: quantityNum,
-      duration: durationNum,
-      startDate: now.toISOString(),
-      endDate: end.toISOString(),
-      totalCost: costBreakdown.total,
-      pricePerKgPerDay: facility.pricePerKgPerDay,
-      status: "active",
-      storageType: facility.type.join(", "),
-    };
-
-    addBooking(booking);
-    updateFacilityCapacity(facility.id, quantityNum);
-    setConfirmed(true);
+    try {
+      await addBooking({
+        facilityId: facility.id,
+        facilityName: facility.name,
+        facilityLocation: facility.location,
+        quantity: quantityNum,
+        duration: durationNum,
+        totalCost: costBreakdown.total,
+        pricePerKgPerDay: facility.pricePerKgPerDay,
+        storageType: facility.type.join(", ")
+      });
+      setConfirmed(true);
+    } catch (error: any) {
+      Alert.alert("Booking Failed", error.message || "Something went wrong.");
+    }
   };
 
   return (

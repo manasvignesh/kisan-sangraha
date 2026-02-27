@@ -1,0 +1,68 @@
+# Kisan Sangraha - MVP Progress Report
+
+This document provides a structured analysis of the current development state of the **Kisan Sangraha** mobile-first application, evaluating the existing implementation against the intended product vision.
+
+## 1. Implemented Features
+The following features are functionally present in the application's UI and routing flow:
+
+* **Authentication UI & Routing**: 
+  * Clean, mobile-optimized `/login` and `/signup` screens.
+  * Role selection allowing users to join as either a **Farmer** or a **Cold Storage Owner**.
+  * Secure route guards ([app/_layout.tsx](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/app/_layout.tsx)) that effectively lock out unauthenticated users.
+* **Role-Based Tab Navigation**:
+  * Dynamic bottom tab bar that hides irrelevant options (like "Bookings" or "Insights") from Cold Storage Owners.
+* **Farmer Dashboard ([index.tsx](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/app/%28tabs%29/index.tsx))**:
+  * Vertical scrolling layout with a compact calendar strip.
+  * Display of weather advisory alerts and nearby cold storage facility listings.
+* **Provider Dashboard (`provider/index.tsx`)**:
+  * Dedicated operational view for storage owners showing capacity, mock utilization percentages, pricing controls, and incoming booking requests.
+* **Storage Facility Profiles (`storage/[id].tsx`)**:
+  * Detailed view of a facility showing trust indicators (Govt Verified), transparent pricing breakdown, amenities, and AI-powered storage recommendations.
+* **Booking Flow (`booking/[id].tsx`)**:
+  * Interactive booking form that dynamically calculates total cost based on quantity, duration, and facility baseline rates (including handling and insurance).
+* **Insights & Profile Pages**:
+  * Functional UI lists for displaying Risk/Market alerts and managing App Language settings.
+
+## 2. Partially Implemented Features
+These features exist visually but are lacking underlying logic, permanent data persistence, or backend connectivity:
+
+* **Authentication & Role Management**: Logins currently use client-side mock logic via [AppContext](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/lib/context.tsx#14-28). There is no actual password verification or JWT-based session persistence connected to the Neon backend.
+* **Booking Submissions**: The booking calculator works, but submitting a booking only saves it to the volatile React Context state (`addBooking`). It is not written to a database.
+* **Data Fetching**: All listings, facilities, reviews, and insights are sourced from a hardcoded `MOCK_FACILITIES` list in [constants/data.ts](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/constants/data.ts).
+* **Database Schema**: The [shared/schema.ts](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/shared/schema.ts) file currently *only* defines a `users` table. There are no relational tables for `facilities`, `bookings`, or `insights`.
+* **Provider Controls**: Adjusting pricing or accepting/declining requests on the Provider dashboard does not trigger real application-wide state changes.
+
+## 3. Missing Core Features
+The following core features required for the full product vision have not yet been implemented:
+
+* **Real-Time Capacity Sync**: Logic to definitively track available capacity across concurrent user bookings.
+* **Live AI/Weather Integration**: Connecting to external APIs (e.g., OpenWeather, Market endpoints) to replace static alerts with real-time actionable intelligence.
+* **Offline/Low-Connectivity Data Sync**: Caching mechanisms (e.g., SQLite or aggressive React Query caching) to allow the app to function during temporary internet outages in rural areas.
+* **Geospatial Queries**: Implementing PostGIS or similar logic in the backend to legitimately calculate the "distance" parameter based on the user's actual GPS location.
+
+## 4. Navigation & UX Evaluation
+**Grade: Excellent (UI Level)**
+
+* **Logical Structure**: The separation between Farmer and Provider experiences is extremely clear. The routing flow successfully prevents UI clutter.
+* **Actionable CTAs**: Buttons are large, touch-friendly, and provide immediate haptic feedback (`expo-haptics`), adhering strictly to iOS-style minimal design patterns.
+* **Responsive Framing**: The addition of a 480px `max-width` constraint on web builds ensures the app never looks "stretched" on desktop monitors, preserving the mobile-first UX.
+* **Areas for UX Improvement**: When a Farmer creates a booking, navigating them forcefully back to the root tabs can be jarring; deeper breadcrumb navigation might be needed for nested views.
+
+## 5. Data & Logic Gaps
+
+* **The "Visual" Mirage**: The application appears fully functional on the surface. If a user inputs 50kg for 3 days, the math accurately updates. However, because this is exclusively relying on React Context and mocked arrays, refreshing the web page wipes the state perfectly clean.
+* **Missing Backend Endpoints**: The Express backend ([server/index.ts](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/server/index.ts)) has no defined API routes (e.g., `GET /api/facilities`, `POST /api/bookings`) to handle the frontend traffic. 
+
+## 6. Overall Completion Estimate
+**Completion: 45% - 50%**
+
+* **Reasoning**: The frontend scaffolding, layout structuring, mobile styling, routing guards, and UX interactions are entirely complete and of high quality. However, the app is entirely "headless." The remaining 50% involves designing the PostgreSQL schemas, writing the API endpoints, wiring `react-query` to ingest real data, and fully integrating live user sessions.
+
+## 7. Priority Recommendations (Next Steps)
+To move this application from a "Mock UI Demo" to a fully functional MVP ready for a hackathon:
+
+1. **Expand the Database Schema**: Immediately add `facilities`, `bookings`, and `insights` tables to [shared/schema.ts](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/shared/schema.ts) and push them to the Neon database.
+2. **Build Core API Endpoints**: Implement [server/routes.ts](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/server/routes.ts) logic to serve the facility listings and accept `POST` requests for new bookings.
+3. **Wire up React Query**: Refactor the frontend [lib/context.tsx](file:///c:/Users/Manas/OneDrive/Desktop/Build-Production-Mobile/lib/context.tsx) to utilize `@tanstack/react-query` to fetch live facility data from the new APIs instead of the `MOCK_FACILITIES` array.
+4. **Finalize Authentication**: Build actual user registration and login endpoints utilizing the existing `users` table, generating secure session tokens/cookies.
+5. **Implement Provider State Mutations**: Create API routes allowing Cold Storage owners to `PUT` or `PATCH` their facility's available capacity and pricing.

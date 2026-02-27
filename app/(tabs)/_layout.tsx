@@ -9,21 +9,28 @@ import React from "react";
 
 import Colors from "@/constants/colors";
 
+import { useApp } from "@/lib/context";
+
 function NativeTabLayout() {
+  const { role } = useApp();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
+        <Label>{role === "provider" ? "Dashboard" : "Home"}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="bookings">
-        <Icon sf={{ default: "calendar", selected: "calendar" }} />
-        <Label>Bookings</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="insights">
-        <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
-        <Label>Insights</Label>
-      </NativeTabs.Trigger>
+      {role === "farmer" && (
+        <NativeTabs.Trigger name="bookings">
+          <Icon sf={{ default: "calendar", selected: "calendar" }} />
+          <Label>Bookings</Label>
+        </NativeTabs.Trigger>
+      )}
+      {role === "farmer" && (
+        <NativeTabs.Trigger name="insights">
+          <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
+          <Label>Insights</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profile</Label>
@@ -37,6 +44,7 @@ function ClassicTabLayout() {
   const isDark = colorScheme === "dark";
   const isWeb = Platform.OS === "web";
   const isIOS = Platform.OS === "ios";
+  const { role } = useApp();
 
   return (
     <Tabs
@@ -67,7 +75,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: role === "provider" ? "Dashboard" : "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
@@ -76,6 +84,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="bookings"
         options={{
+          href: role === "provider" ? null : "/bookings",
           title: "Bookings",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
@@ -85,6 +94,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="insights"
         options={{
+          href: role === "provider" ? null : "/insights",
           title: "Insights",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bulb-outline" size={size} color={color} />
