@@ -113,32 +113,6 @@ export default function ProfileScreen() {
 
       <Text style={styles.sectionLabel}>{t("settings")}</Text>
       <View style={styles.settingsCard}>
-        {/* Only farmers can switch to Provider mode — Providers are always in provider mode */}
-        {role === "farmer" && (
-          <Pressable
-            style={styles.settingsItem}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const newRole = role === "farmer" ? "provider" : "farmer";
-              setRole(newRole as any);
-              if (newRole === "provider") {
-                router.push("/provider");
-              }
-            }}
-          >
-            <View style={styles.settingsItemLeft}>
-              <View style={[styles.settingsIcon, { backgroundColor: Colors.verifiedLight }]}>
-                <MaterialCommunityIcons name="swap-horizontal" size={18} color={Colors.verified} />
-              </View>
-              <View>
-                <Text style={styles.settingsItemTitle}>Switch to Provider</Text>
-                <Text style={styles.settingsItemSub}>Manage your cold storage facility</Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={18} color={Colors.textTertiary} />
-          </Pressable>
-        )}
-        {role === "farmer" && <View style={styles.settingsSep} />}
 
 
         <Pressable style={styles.settingsItem}>
