@@ -11,6 +11,7 @@ interface AppContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
   user: User | null;
+  userProfile: { name: string; location: string };
   role: UserRole;
   isAuthenticated: boolean;
   login: (data: any) => Promise<void>;
@@ -187,6 +188,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       language,
       setLanguage,
       user,
+      userProfile: {
+        name: user?.username || "Guest",
+        location: "Pune, Maharashtra" // Mock default for now or pull from real profile if available
+      },
       role,
       isAuthenticated,
       login: async (d: any) => { await loginMutation.mutateAsync(d); },
