@@ -23,7 +23,7 @@ interface AppContextValue {
   logout: () => Promise<void>;
   facilities: Facility[];
   bookings: BookingType[];
-  addBooking: (data: any) => Promise<void>;
+  addBooking: (data: Omit<BookingType, "id" | "status" | "startDate" | "endDate"> & { storageCategory?: string }) => Promise<void>;
   addFacility: (data: any) => Promise<void>;
   updateFacilityPrice: (facilityId: string, newPrice: number) => Promise<void>;
   updateFacilityCapacity: (facilityId: string, quantityBooked: number) => Promise<void>;
@@ -272,7 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logout: async () => { await logoutMutation.mutateAsync(); },
       facilities,
       bookings,
-      addBooking: async (data: any) => { await createBookingMutation.mutateAsync(data); },
+      addBooking: async (data: Omit<BookingType, "id" | "status" | "startDate" | "endDate"> & { storageCategory?: string }) => { await createBookingMutation.mutateAsync(data); },
       addFacility: async (data: any) => { await addFacilityMutation.mutateAsync(data); },
       updateFacilityPrice: async (facilityId: string, newPrice: number) => {
         await updateFacilityMutation.mutateAsync({ id: facilityId, pricePerKgPerDay: newPrice });

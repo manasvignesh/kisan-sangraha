@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalCost,
         pricePerKgPerDay: actualPrice,
         storageType,
-        storageCategory: req.body.storageCategory || "Fruits & Vegetables",
+        storageCategory: storageCategory || "Multi-purpose",
         startDate: now,
         endDate: end,
         status: "pending",

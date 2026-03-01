@@ -89,7 +89,7 @@ export const bookings = pgTable("bookings", {
   pricePerKgPerDay: doublePrecision("price_per_kg_per_day").notNull(),
   status: text("status").notNull().default("active"), // 'active', 'completed', 'cancelled', 'pending'
   storageType: text("storage_type").notNull(),
-  storageCategory: text("storage_category").notNull().default("Fruits & Vegetables"),
+  storageCategory: text("storage_category").notNull().default("Multi-purpose"),
 });
 
 export const insights = pgTable("insights", {

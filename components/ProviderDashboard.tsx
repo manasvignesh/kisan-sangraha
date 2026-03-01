@@ -311,7 +311,7 @@ export default function ProviderDashboard() {
                                 <View style={styles.requestInfo}>
                                     <Text style={styles.requestName}>Farmer Request</Text>
                                     <Text style={styles.requestMeta}>
-                                        {req.storageType || "Produce"} · {req.quantity} kg · {req.duration} days
+                                        {req.storageCategory || req.storageType || "Produce"} · {req.quantity} kg · {req.duration} days
                                     </Text>
                                     <Text style={styles.requestFacility}>{req.facilityName}</Text>
                                 </View>
