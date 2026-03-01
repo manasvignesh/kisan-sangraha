@@ -91,7 +91,7 @@ export default function StorageDetailScreen() {
           </View>
           <View style={styles.capacityLabels}>
             <Text style={styles.capacityLabelLeft}>
-              {(facility.availableCapacity / 1000).toFixed(1)}T available
+              {facility.availableCapacity.toLocaleString()} kg available
             </Text>
             <Text style={styles.capacityLabelRight}>
               {usedPct}% utilized
@@ -99,22 +99,23 @@ export default function StorageDetailScreen() {
           </View>
           <View style={styles.capacityStats}>
             <View style={styles.capacityStat}>
-              <Text style={styles.capacityStatValue}>{(facility.totalCapacity / 1000).toFixed(0)}T</Text>
+              <Text style={styles.capacityStatValue}>{facility.totalCapacity.toLocaleString()} kg</Text>
               <Text style={styles.capacityStatLabel}>Total</Text>
             </View>
             <View style={styles.capacityStat}>
               <Text style={[styles.capacityStatValue, { color: availColor }]}>
-                {(facility.availableCapacity / 1000).toFixed(1)}T
+                {facility.availableCapacity.toLocaleString()} kg
               </Text>
               <Text style={styles.capacityStatLabel}>Available</Text>
             </View>
             <View style={styles.capacityStat}>
               <Text style={styles.capacityStatValue}>
-                {((facility.totalCapacity - facility.availableCapacity) / 1000).toFixed(1)}T
+                {(facility.totalCapacity - facility.availableCapacity).toLocaleString()} kg
               </Text>
               <Text style={styles.capacityStatLabel}>Occupied</Text>
             </View>
           </View>
+
         </View>
 
         <View style={styles.sectionCard}>

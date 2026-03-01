@@ -3,6 +3,50 @@ import { pgTable, text, varchar, integer, boolean, doublePrecision, timestamp } 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const STORAGE_CATEGORIES_CONFIG = {
+  "Fruits & Vegetables": { min: 0.8, max: 1.2, default: 1.0 },
+  "Dairy Products": { min: 1.5, max: 2.5, default: 2.0 },
+  "Frozen Goods": { min: 3.0, max: 5.0, default: 4.0 },
+  "Grains": { min: 0.8, max: 1.5, default: 1.0 },
+  "Multi-purpose Storage": { min: 0.8, max: 1.5, default: 1.0 },
+} as const;
+
+export type StorageCategory = keyof typeof STORAGE_CATEGORIES_CONFIG;
+
+export const storageCategories = Object.keys(STORAGE_CATEGORIES_CONFIG) as StorageCategory[];
+
+export function getDefaultPriceForCategory(category: string): number {
+  return STORAGE_CATEGORIES_CONFIG[category as StorageCategory]?.default || 1.0;
+}
+
+export function isPriceInBounds(category: string, price: number): { inBounds: boolean; min: number; max: number } {
+  const config = STORAGE_CATEGORIES_CONFIG[category as StorageCategory];
+  if (!config) return { inBounds: true, min: 0.1, max: 10 };
+  return {
+    inBounds: price >= config.min && price <= config.max,
+    min: config.min,
+    max: config.max
+  };
+}
+
+/**
+ * Resolves the definitive price for a facility/category combination.
+ * Priority: Facility custom price > Category default > Global fallback (1.0)
+ */
+export function resolveFacilityPrice(facilityPrice: number | null | undefined, category: string): number {
+  if (facilityPrice !== null && facilityPrice !== undefined && facilityPrice > 0) {
+    return facilityPrice;
+  }
+  return getDefaultPriceForCategory(category);
+}
+
+/**
+ * Standardized cost calculation formula.
+ */
+export function calculateTotalCost(quantity: number, pricePerKgPerDay: number, durationDays: number): number {
+  return quantity * pricePerKgPerDay * durationDays;
+}
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -28,6 +72,7 @@ export const facilities = pgTable("facilities", {
   operatingHours: text("operating_hours").notNull(),
   minBookingDays: integer("min_booking_days").notNull().default(1),
   amenities: text("amenities").array().notNull().default(sql`'{}'::text[]`),
+  imageUrl: text("image_url"),
 });
 
 export const bookings = pgTable("bookings", {
@@ -44,6 +89,7 @@ export const bookings = pgTable("bookings", {
   pricePerKgPerDay: doublePrecision("price_per_kg_per_day").notNull(),
   status: text("status").notNull().default("active"), // 'active', 'completed', 'cancelled', 'pending'
   storageType: text("storage_type").notNull(),
+  storageCategory: text("storage_category").notNull().default("Fruits & Vegetables"),
 });
 
 export const insights = pgTable("insights", {

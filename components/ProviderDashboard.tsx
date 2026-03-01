@@ -213,8 +213,8 @@ export default function ProviderDashboard() {
                             {/* Capacity Bar */}
                             <View style={styles.capacitySection}>
                                 <View style={styles.capacityLabelRow}>
-                                    <Text style={styles.capacityLabel}>Available: {facility.availableCapacity} kg</Text>
-                                    <Text style={styles.capacityLabel}>Total: {facility.totalCapacity} kg</Text>
+                                    <Text style={styles.capacityLabel}>Available: {facility.availableCapacity.toLocaleString()} kg</Text>
+                                    <Text style={styles.capacityLabel}>Total: {facility.totalCapacity.toLocaleString()} kg</Text>
                                 </View>
                                 <View style={styles.barBg}>
                                     <View style={[styles.barFill, { width: `${utilization}%` as any }]} />
@@ -330,7 +330,7 @@ export default function ProviderDashboard() {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.actionBtn, styles.acceptBtn]}
-                                    onPress={() => updateBookingStatus(req.id, "completed")}
+                                    onPress={() => updateBookingStatus(req.id, "active")}
                                 >
                                     <Feather name="check" size={14} color="#fff" />
                                     <Text style={styles.acceptBtnText}>Accept</Text>

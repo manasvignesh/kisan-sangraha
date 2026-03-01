@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { db } from "./db";
-import { facilities, bookings, insights } from "../shared/schema";
+import { facilities, bookings, insights, resolveFacilityPrice, calculateTotalCost } from "../shared/schema";
 import { eq, desc } from "drizzle-orm";
 
 // ─── Seed Demo Facilities (used when DB is empty) ─────────────────────────────
@@ -13,7 +13,7 @@ const DEMO_FACILITIES = [
     type: ["Cold", "Multi-purpose"] as string[],
     totalCapacity: 80000,
     availableCapacity: 62000,
-    pricePerKgPerDay: 0.45,
+    pricePerKgPerDay: 1.10,
     contactPhone: "+91 98765 43210",
     operatingHours: "6AM - 10PM",
     certifications: ["FSSAI", "ISO 22000"] as string[],
@@ -23,6 +23,7 @@ const DEMO_FACILITIES = [
     rating: 4.7,
     reviewCount: 132,
     distance: 2.3,
+    imageUrl: "/assets/facilities/pune_hub.png",
   },
   {
     ownerId: null,
@@ -31,7 +32,7 @@ const DEMO_FACILITIES = [
     type: ["Frozen"] as string[],
     totalCapacity: 50000,
     availableCapacity: 28000,
-    pricePerKgPerDay: 0.55,
+    pricePerKgPerDay: 4.50,
     contactPhone: "+91 90123 45678",
     operatingHours: "Open 24/7",
     certifications: ["FSSAI"] as string[],
@@ -41,6 +42,7 @@ const DEMO_FACILITIES = [
     rating: 4.4,
     reviewCount: 89,
     distance: 5.1,
+    imageUrl: "/assets/facilities/nashik_freshostore.png",
   },
   {
     ownerId: null,
@@ -49,7 +51,7 @@ const DEMO_FACILITIES = [
     type: ["Cold"] as string[],
     totalCapacity: 40000,
     availableCapacity: 38000,
-    pricePerKgPerDay: 0.38,
+    pricePerKgPerDay: 0.95,
     contactPhone: "+91 77654 32190",
     operatingHours: "8AM - 8PM",
     certifications: [] as string[],
@@ -59,6 +61,7 @@ const DEMO_FACILITIES = [
     rating: 4.1,
     reviewCount: 41,
     distance: 8.6,
+    imageUrl: "/assets/facilities/aurangabad_greenvault.png",
   },
 ];
 
@@ -162,6 +165,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.name !== undefined) updates.name = req.body.name;
       if (req.body.location !== undefined) updates.location = req.body.location;
 
+      // Price validation (if category is known or provided)
+      // For now, simple non-negative check. Category-based warning handled in UI.
+      // Price validation: strictly positive price required
+      if (updates.pricePerKgPerDay !== undefined && updates.pricePerKgPerDay <= 0) {
+        return res.status(400).json({ error: "Price must be greater than zero." });
+      }
+
       const [updated] = await db.update(facilities).set(updates).where(eq(facilities.id, req.params.id)).returning();
       res.json(updated);
     } catch (e) {
@@ -176,7 +186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { facilityId, facilityName, facilityLocation, quantity, duration, totalCost, pricePerKgPerDay, storageType } = req.body;
+      const { facilityId, facilityName, facilityLocation, quantity, duration, storageType, storageCategory } = req.body;
 
       const [facility] = await db.select().from(facilities).where(eq(facilities.id, facilityId));
       if (!facility) return res.status(404).json({ error: "Facility not found" });
@@ -184,6 +194,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (quantity > facility.availableCapacity) {
         return res.status(400).json({ error: "Requested quantity exceeds available capacity." });
       }
+
+      // Use standardized price resolution (Owner Price > Category Default > Fallback)
+      const actualPrice = resolveFacilityPrice(facility.pricePerKgPerDay, storageCategory || "Fruits & Vegetables");
+      const totalCost = calculateTotalCost(quantity, actualPrice, duration);
 
       const now = new Date();
       const end = new Date(now.getTime() + duration * 24 * 60 * 60 * 1000);
@@ -197,11 +211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quantity,
         duration,
         totalCost,
-        pricePerKgPerDay,
+        pricePerKgPerDay: actualPrice,
         storageType,
+        storageCategory: req.body.storageCategory || "Fruits & Vegetables",
         startDate: now,
         endDate: end,
-        status: "pending",  // ← was "active", now "pending" until owner accepts
+        status: "pending",
       }).returning();
 
       res.status(201).json(booking);
@@ -238,24 +253,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { status } = req.body;
+      const bookingId = req.params.id;
 
-      // When accepting, reduce facility capacity
-      if (status === "active") {
-        const [booking] = await db.select().from(bookings).where(eq(bookings.id, req.params.id));
-        if (booking) {
-          const [facility] = await db.select().from(facilities).where(eq(facilities.id, booking.facilityId));
-          if (facility && facility.availableCapacity >= booking.quantity) {
-            await db.update(facilities).set({
-              availableCapacity: facility.availableCapacity - booking.quantity
-            }).where(eq(facilities.id, booking.facilityId));
+      const result = await db.transaction(async (tx) => {
+        const [booking] = await tx.select().from(bookings).where(eq(bookings.id, bookingId));
+        if (!booking) throw new Error("Booking not found");
+
+        const [facility] = await tx.select().from(facilities).where(eq(facilities.id, booking.facilityId));
+        if (!facility) throw new Error("Facility not found");
+
+        // If transitioning TO "active" (approved), reduce capacity
+        if (status === "active" && booking.status !== "active") {
+          if (facility.availableCapacity < booking.quantity) {
+            throw new Error("Insufficient capacity to approve this booking.");
           }
+          await tx.update(facilities).set({
+            availableCapacity: facility.availableCapacity - booking.quantity
+          }).where(eq(facilities.id, facility.id));
         }
-      }
 
-      const [updatedBooking] = await db.update(bookings).set({ status }).where(eq(bookings.id, req.params.id)).returning();
-      res.json(updatedBooking);
-    } catch (e) {
-      res.status(500).json({ error: "Failed to update booking status." });
+        // If transitioning FROM "active" to something else (cancelled/rejected), restore capacity
+        if (booking.status === "active" && (status === "cancelled" || status === "rejected")) {
+          await tx.update(facilities).set({
+            availableCapacity: facility.availableCapacity + booking.quantity
+          }).where(eq(facilities.id, facility.id));
+        }
+
+        const [updatedBooking] = await tx.update(bookings).set({ status }).where(eq(bookings.id, bookingId)).returning();
+        return updatedBooking;
+      });
+
+      res.json(result);
+    } catch (e: any) {
+      console.error("Booking status update failed:", e);
+      res.status(400).json({ error: e.message || "Failed to update booking status." });
     }
   });
 

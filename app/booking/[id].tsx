@@ -8,11 +8,12 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import Colors from "@/constants/colors";
 import { useApp } from "@/lib/context";
 import { Booking } from "@/constants/data";
+import { storageCategories, STORAGE_CATEGORIES_CONFIG, resolveFacilityPrice, calculateTotalCost } from "@/shared/schema";
 
 export default function BookingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { facilities, addBooking, updateFacilityCapacity } = useApp();
+  const { facilities, addBooking } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   const facility = facilities.find((f) => f.id === id);
@@ -20,18 +21,31 @@ export default function BookingScreen() {
   const [quantity, setQuantity] = useState("");
   const [duration, setDuration] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(storageCategories[0]);
 
   const quantityNum = parseInt(quantity) || 0;
   const durationNum = parseInt(duration) || 0;
 
+  const categoryConfig = STORAGE_CATEGORIES_CONFIG[selectedCategory];
+  const priceToUse = useMemo(() => resolveFacilityPrice(facility?.pricePerKgPerDay, selectedCategory), [facility, selectedCategory]);
+
+  const isCompatible = useMemo(() => {
+    if (!facility) return true;
+    const facilityTypes = facility.type.map(t => t.toLowerCase());
+    const categoryLower = selectedCategory.toLowerCase();
+
+    if (categoryLower.includes("frozen") && !facilityTypes.includes("frozen")) return false;
+    if (categoryLower.includes("dairy") && !facilityTypes.includes("dairy") && !facilityTypes.includes("cold")) return false;
+    if (categoryLower.includes("fruits") && !facilityTypes.includes("cold")) return false;
+    return true;
+  }, [selectedCategory, facility]);
+
   const costBreakdown = useMemo(() => {
     if (!facility || quantityNum <= 0 || durationNum <= 0)
-      return { base: 0, handling: 0, insurance: 0, total: 0 };
-    const base = quantityNum * facility.pricePerKgPerDay * 0.8 * durationNum;
-    const handling = quantityNum * facility.pricePerKgPerDay * 0.12 * durationNum;
-    const insurance = quantityNum * facility.pricePerKgPerDay * 0.08 * durationNum;
-    return { base, handling, insurance, total: base + handling + insurance };
-  }, [quantityNum, durationNum, facility]);
+      return { total: 0 };
+    const total = calculateTotalCost(quantityNum, priceToUse, durationNum);
+    return { total };
+  }, [quantityNum, durationNum, priceToUse, facility]);
 
   const isValid = quantityNum > 0 && durationNum >= (facility?.minBookingDays || 1) && quantityNum <= (facility?.availableCapacity || 0);
 
@@ -52,12 +66,16 @@ export default function BookingScreen() {
           </View>
           <Text style={styles.confirmTitle}>Booking Confirmed!</Text>
           <Text style={styles.confirmSub}>
-            {quantityNum} kg stored at {facility.name} for {durationNum} days
+            {quantityNum} kg of {selectedCategory} stored at {facility.name} for {durationNum} days
           </Text>
           <View style={styles.confirmDetails}>
             <View style={styles.confirmDetailRow}>
+              <Text style={styles.confirmLabel}>Category</Text>
+              <Text style={styles.confirmValue}>{selectedCategory}</Text>
+            </View>
+            <View style={styles.confirmDetailRow}>
               <Text style={styles.confirmLabel}>Total Cost</Text>
-              <Text style={styles.confirmValue}>{"₹"}{costBreakdown.total.toFixed(0)}</Text>
+              <Text style={styles.confirmValue}>{"₹"}{costBreakdown.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
             </View>
             <View style={styles.confirmDetailRow}>
               <Text style={styles.confirmLabel}>Start Date</Text>
@@ -98,8 +116,9 @@ export default function BookingScreen() {
         quantity: quantityNum,
         duration: durationNum,
         totalCost: costBreakdown.total,
-        pricePerKgPerDay: facility.pricePerKgPerDay,
-        storageType: facility.type.join(", ")
+        pricePerKgPerDay: priceToUse,
+        storageType: facility.type.join(", "),
+        storageCategory: selectedCategory
       });
       setConfirmed(true);
     } catch (error: any) {
@@ -154,6 +173,41 @@ export default function BookingScreen() {
         </View>
 
         <View style={styles.inputSection}>
+          <Text style={styles.inputLabel}>Storage Category</Text>
+          <View style={styles.categoryGrid}>
+            {storageCategories.map((cat) => (
+              <Pressable
+                key={cat}
+                style={[
+                  styles.categoryChip,
+                  selectedCategory === cat && styles.categoryChipActive
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedCategory(cat);
+                }}
+              >
+                <Text style={[
+                  styles.categoryChipText,
+                  selectedCategory === cat && styles.categoryChipTextActive
+                ]}>{cat}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {!isCompatible && (
+            <View style={styles.warningBox}>
+              <Feather name="alert-triangle" size={14} color={Colors.warning} />
+              <Text style={styles.warningText}>
+                {facility.name} may not support {selectedCategory.toLowerCase()}.
+              </Text>
+            </View>
+          )}
+          <Text style={styles.inputHint}>
+            Standard rate: ₹{categoryConfig.min}-{categoryConfig.max} {selectedCategory === "Fruits & Vegetables" ? "" : "(Avg.)"}
+          </Text>
+        </View>
+
+        <View style={styles.inputSection}>
           <Text style={styles.inputLabel}>Duration (days)</Text>
           <View style={styles.inputRow}>
             <Feather name="calendar" size={18} color={Colors.textTertiary} />
@@ -173,23 +227,23 @@ export default function BookingScreen() {
 
         {quantityNum > 0 && durationNum > 0 && (
           <View style={styles.costCard}>
-            <Text style={styles.costTitle}>Cost Breakdown</Text>
+            <Text style={styles.costTitle}>Booking Summary</Text>
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Base storage ({quantityNum}kg x {durationNum}d)</Text>
-              <Text style={styles.costValue}>{"₹"}{costBreakdown.base.toFixed(0)}</Text>
+              <Text style={styles.costLabel}>Storage Category</Text>
+              <Text style={styles.costValue}>{selectedCategory}</Text>
             </View>
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Handling charges</Text>
-              <Text style={styles.costValue}>{"₹"}{costBreakdown.handling.toFixed(0)}</Text>
+              <Text style={styles.costLabel}>Rate (per kg/day)</Text>
+              <Text style={styles.costValue}>{"₹"}{priceToUse.toFixed(2)}</Text>
             </View>
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Insurance</Text>
-              <Text style={styles.costValue}>{"₹"}{costBreakdown.insurance.toFixed(0)}</Text>
+              <Text style={styles.costLabel}>Quantity & Duration</Text>
+              <Text style={styles.costValue}>{quantityNum}kg x {durationNum}d</Text>
             </View>
             <View style={styles.costSep} />
             <View style={styles.costRow}>
-              <Text style={styles.costTotalLabel}>Total Cost</Text>
-              <Text style={styles.costTotalValue}>{"₹"}{costBreakdown.total.toFixed(0)}</Text>
+              <Text style={styles.costTotalLabel}>Total Estimate</Text>
+              <Text style={styles.costTotalValue}>{"₹"}{costBreakdown.total.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
             </View>
           </View>
         )}
@@ -199,7 +253,7 @@ export default function BookingScreen() {
         {costBreakdown.total > 0 && (
           <View style={styles.totalSection}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{"₹"}{costBreakdown.total.toFixed(0)}</Text>
+            <Text style={styles.totalValue}>{"₹"}{costBreakdown.total.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</Text>
           </View>
         )}
         <Pressable
@@ -313,6 +367,47 @@ const styles = StyleSheet.create({
     fontFamily: "NunitoSans_600SemiBold",
     color: Colors.danger,
     paddingLeft: 4,
+  },
+  categoryGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    gap: 8,
+    marginTop: 4,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.textSecondary,
+  },
+  categoryChipTextActive: {
+    color: Colors.primary,
+  },
+  warningBox: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    backgroundColor: Colors.warningLight,
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  warningText: {
+    fontSize: 12,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.warning,
+    flex: 1,
   },
   costCard: {
     backgroundColor: Colors.surface,

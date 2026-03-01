@@ -11,7 +11,7 @@ import { useApp, useTranslation } from "@/lib/context";
 export default function ProviderDashboard() {
   const insets = useSafeAreaInsets();
   const t = useTranslation();
-  const { facilities, bookings, setFacilityAvailability } = useApp();
+  const { facilities, bookings, setFacilityAvailability, updateFacilityPrice } = useApp();
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
   const facility = facilities[0];
@@ -19,8 +19,10 @@ export default function ProviderDashboard() {
 
   const [editCapacity, setEditCapacity] = useState(false);
   const [newCapacity, setNewCapacity] = useState(facility ? String(facility.availableCapacity) : "0");
+  const [editPrice, setEditPrice] = useState(false);
+  const [newPrice, setNewPrice] = useState(facility ? String(facility.pricePerKgPerDay) : "1.00");
 
-  const totalRequested = requests.filter((r: any) => r.status === "active").reduce((s: number, r: any) => s + r.quantity, 0);
+  const totalRequested = requests.filter((r: any) => r.status === "active" || r.status === "pending").reduce((s: number, r: any) => s + r.quantity, 0);
   const usedPct = facility ? Math.round(((facility.totalCapacity - facility.availableCapacity) / facility.totalCapacity) * 100) : 0;
 
   return (
@@ -92,7 +94,7 @@ export default function ProviderDashboard() {
                   onPress={() => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     const newCap = parseInt(newCapacity) || 0;
-                    if (newCap > 0 && newCap <= facility.totalCapacity) {
+                    if (newCap >= 0 && newCap <= facility.totalCapacity) {
                       setFacilityAvailability(facility.id, newCap);
                     }
                     setEditCapacity(false);
@@ -123,7 +125,7 @@ export default function ProviderDashboard() {
               <Text style={styles.sectionTitle}>Booking Requests</Text>
               <View style={styles.requestCountBadge}>
                 <Text style={styles.requestCountText}>
-                  {requests.filter((r: any) => r.status === "active").length} pending
+                  {requests.filter((r: any) => r.status === "pending").length} pending
                 </Text>
               </View>
             </View>
@@ -131,19 +133,22 @@ export default function ProviderDashboard() {
               {requests.map((req: any) => (
                 <View key={req.id} style={styles.requestItem}>
                   <View style={styles.requestInfo}>
-                    <Text style={styles.requestFarmer}>User #{req.userId}</Text>
+                    <Text style={styles.requestFarmer}>Farmer ID: {req.userId.slice(0, 8)}</Text>
+                    <View style={styles.requestCategoryBadge}>
+                      <Text style={styles.requestCategoryText}>{req.storageCategory || "Fruits & Vegetables"}</Text>
+                    </View>
                     <Text style={styles.requestDetail}>
-                      {req.quantity} kg for {req.duration} days
+                      {req.quantity} kg | {req.duration} days
                     </Text>
                     <Text style={styles.requestDate}>{new Date(req.startDate).toLocaleDateString()}</Text>
                   </View>
-                  {req.status === "active" ? (
+                  {req.status === "pending" ? (
                     <View style={styles.requestActions}>
                       <Pressable
                         style={styles.acceptBtn}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          // Context updates status to completed
+                          // Handle accept
                         }}
                       >
                         <Feather name="check" size={16} color="#FFF" />
@@ -152,16 +157,22 @@ export default function ProviderDashboard() {
                         style={styles.declineBtn}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          // Context updates status to cancelled
+                          // Handle decline
                         }}
                       >
                         <Feather name="x" size={16} color={Colors.danger} />
                       </Pressable>
                     </View>
                   ) : (
-                    <View style={styles.acceptedBadge}>
-                      <Feather name="check-circle" size={12} color={Colors.success} />
-                      <Text style={styles.acceptedText}>Completed</Text>
+                    <View style={[styles.acceptedBadge, req.status === "cancelled" && { backgroundColor: Colors.dangerLight }]}>
+                      <Feather
+                        name={req.status === "active" ? "check-circle" : req.status === "cancelled" ? "x-circle" : "clock"}
+                        size={12}
+                        color={req.status === "active" ? Colors.success : req.status === "cancelled" ? Colors.danger : Colors.warning}
+                      />
+                      <Text style={[styles.acceptedText, req.status === "cancelled" && { color: Colors.danger }]}>
+                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -178,7 +189,34 @@ export default function ProviderDashboard() {
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Price per kg/day</Text>
-                <Text style={styles.detailValue}>{"₹"}{facility.pricePerKgPerDay.toFixed(2)}</Text>
+                {editPrice ? (
+                  <View style={styles.editPriceRow}>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={newPrice}
+                      onChangeText={setNewPrice}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                    />
+                    <Pressable
+                      onPress={() => {
+                        const price = parseFloat(newPrice);
+                        if (!isNaN(price) && price > 0) {
+                          updateFacilityPrice(facility.id, price);
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          setEditPrice(false);
+                        }
+                      }}
+                    >
+                      <Feather name="check" size={16} color={Colors.primary} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable style={styles.priceRow} onPress={() => setEditPrice(true)}>
+                    <Text style={styles.detailValue}>{"₹"}{facility.pricePerKgPerDay.toFixed(2)}</Text>
+                    <Feather name="edit-2" size={12} color={Colors.textTertiary} style={{ marginLeft: 6 }} />
+                  </Pressable>
+                )}
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Operating Hours</Text>
@@ -187,10 +225,6 @@ export default function ProviderDashboard() {
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Certifications</Text>
                 <Text style={styles.detailValue}>{facility.certifications.join(", ")}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Rating</Text>
-                <Text style={styles.detailValue}>{facility.rating} ({facility.reviewCount} reviews)</Text>
               </View>
             </View>
           </View>
@@ -224,6 +258,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   headerRow: {
+    paddingHorizontal: 16,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     gap: 12,
@@ -376,6 +411,19 @@ const styles = StyleSheet.create({
     fontFamily: "NunitoSans_600SemiBold",
     color: Colors.text,
   },
+  requestCategoryBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: "flex-start" as const,
+    marginVertical: 4,
+  },
+  requestCategoryText: {
+    fontSize: 10,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.primary,
+  },
   requestDetail: {
     fontSize: 12,
     fontFamily: "NunitoSans_400Regular",
@@ -429,6 +477,7 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
+    alignItems: "center" as const,
   },
   detailLabel: {
     fontSize: 13,
@@ -440,7 +489,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "NunitoSans_600SemiBold",
     color: Colors.text,
-    flex: 1,
+    textAlign: "right" as const,
+  },
+  priceRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+  },
+  editPriceRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+  },
+  priceInput: {
+    backgroundColor: Colors.surfaceElevated,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontSize: 13,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    width: 60,
     textAlign: "right" as const,
   },
   analyticsCard: {

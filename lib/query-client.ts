@@ -1,4 +1,6 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
+
 // On web, use the native browser fetch (avoids Expo dev server interception).
 // On native mobile, fall back to expo/fetch.
 const nativeFetch = typeof globalThis.fetch !== "undefined" ? globalThis.fetch.bind(globalThis) : require("expo/fetch").fetch;
@@ -9,6 +11,15 @@ export function getApiUrl(): string {
   // If we are running locally in Expo Dev mode, bypass the browser origin
   // so the frontend (8081) directly talks to the backend (5000).
   if (__DEV__) {
+    // For physical devices in dev mode, use the host IP from Expo Constants
+    // Only use IP-based resolution for native mobile to avoid weirdness on web
+    if (Platform.OS !== "web") {
+      const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost;
+      if (debuggerHost) {
+        const ip = debuggerHost.split(":").shift();
+        if (ip) return `http://${ip}:5000`;
+      }
+    }
     return "http://localhost:5000";
   }
 

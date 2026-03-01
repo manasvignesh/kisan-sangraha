@@ -1,10 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { StorageFacility } from "@/constants/data";
+import type { Facility } from "../shared/schema";
+import { resolveFacilityPrice, storageCategories } from "../shared/schema";
+import { getApiUrl } from "@/lib/query-client";
 
 function getAvailabilityColor(available: number, total: number) {
   const pct = available / total;
@@ -26,7 +28,7 @@ const TYPE_ICONS: Record<string, string> = {
   Dairy: "cow",
 };
 
-export default function StorageCard({ facility }: { facility: StorageFacility }) {
+export default function StorageCard({ facility }: { facility: Facility }) {
   const availColor = getAvailabilityColor(facility.availableCapacity, facility.totalCapacity);
   const availLabel = getAvailabilityLabel(facility.availableCapacity, facility.totalCapacity);
   const pct = Math.round((facility.availableCapacity / facility.totalCapacity) * 100);
@@ -36,83 +38,91 @@ export default function StorageCard({ facility }: { facility: StorageFacility })
     router.push({ pathname: "/storage/[id]", params: { id: facility.id } });
   };
 
+  const imageUrl = facility.imageUrl ? `${getApiUrl()}${facility.imageUrl}` : null;
+
   return (
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       onPress={handlePress}
     >
-      <View style={styles.header}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>{facility.name}</Text>
-          {facility.verified && (
-            <View style={styles.verifiedBadge}>
-              <Feather name="check-circle" size={11} color={Colors.verified} />
-              <Text style={styles.verifiedText}>Verified</Text>
+      {imageUrl && (
+        <Image source={{ uri: imageUrl }} style={styles.facilityImage} resizeMode="cover" />
+      )}
+
+      <View style={styles.cardContent}>
+        <View style={styles.header}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{facility.name}</Text>
+            {facility.verified && (
+              <View style={styles.verifiedBadge}>
+                <Feather name="check-circle" size={11} color={Colors.verified} />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.locationRow}>
+            <Feather name="map-pin" size={12} color={Colors.textTertiary} />
+            <Text style={styles.locationText}>{facility.location}</Text>
+            <View style={styles.distanceBadge}>
+              <Text style={styles.distanceText}>{facility.distance?.toFixed(1) || "0.0"} km</Text>
             </View>
-          )}
-        </View>
-        <View style={styles.locationRow}>
-          <Feather name="map-pin" size={12} color={Colors.textTertiary} />
-          <Text style={styles.locationText}>{facility.location}</Text>
-          <View style={styles.distanceBadge}>
-            <Text style={styles.distanceText}>{facility.distance} km</Text>
           </View>
         </View>
-      </View>
 
-      <View style={styles.typesRow}>
-        {facility.type.map((t) => (
-          <View key={t} style={styles.typeBadge}>
-            <MaterialCommunityIcons
-              name={TYPE_ICONS[t] as any}
-              size={13}
-              color={Colors.primary}
-            />
-            <Text style={styles.typeText}>{t}</Text>
+        <View style={styles.typesRow}>
+          {facility.type.map((t) => (
+            <View key={t} style={styles.typeBadge}>
+              <MaterialCommunityIcons
+                name={(TYPE_ICONS[t] || "warehouse") as any}
+                size={13}
+                color={Colors.primary}
+              />
+              <Text style={styles.typeText}>{t}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoValue}>
+              {"₹"}{resolveFacilityPrice(facility.pricePerKgPerDay, storageCategories[0]).toFixed(2)}
+            </Text>
+            <Text style={styles.infoLabel}>per kg/day</Text>
           </View>
-        ))}
-      </View>
+          <View style={styles.infoSep} />
+          <View style={styles.infoItem}>
+            <View style={[styles.availDot, { backgroundColor: availColor }]} />
+            <Text style={[styles.infoValue, { color: availColor }]}>{availLabel}</Text>
+            <Text style={styles.infoLabel}>{pct}% free</Text>
+          </View>
+          <View style={styles.infoSep} />
+          <View style={styles.infoItem}>
+            <Feather name="star" size={13} color={Colors.warning} />
+            <Text style={styles.infoValue}>{facility.rating}</Text>
+            <Text style={styles.infoLabel}>({facility.reviewCount})</Text>
+          </View>
+        </View>
 
-      <View style={styles.infoRow}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoValue}>
-            {"₹"}{facility.pricePerKgPerDay.toFixed(2)}
+        <View style={styles.capacityBar}>
+          <View
+            style={[
+              styles.capacityFill,
+              {
+                width: `${pct}%` as any,
+                backgroundColor: availColor,
+              },
+            ]}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.capacityText}>
+            {facility.availableCapacity.toLocaleString()} kg / {facility.totalCapacity.toLocaleString()} kg available
           </Text>
-          <Text style={styles.infoLabel}>per kg/day</Text>
-        </View>
-        <View style={styles.infoSep} />
-        <View style={styles.infoItem}>
-          <View style={[styles.availDot, { backgroundColor: availColor }]} />
-          <Text style={[styles.infoValue, { color: availColor }]}>{availLabel}</Text>
-          <Text style={styles.infoLabel}>{pct}% free</Text>
-        </View>
-        <View style={styles.infoSep} />
-        <View style={styles.infoItem}>
-          <Feather name="star" size={13} color={Colors.warning} />
-          <Text style={styles.infoValue}>{facility.rating}</Text>
-          <Text style={styles.infoLabel}>({facility.reviewCount})</Text>
-        </View>
-      </View>
-
-      <View style={styles.capacityBar}>
-        <View
-          style={[
-            styles.capacityFill,
-            {
-              width: `${pct}%` as any,
-              backgroundColor: availColor,
-            },
-          ]}
-        />
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.capacityText}>
-          {(facility.availableCapacity / 1000).toFixed(0)}T / {(facility.totalCapacity / 1000).toFixed(0)}T available
-        </Text>
-        <View style={styles.bookBtn}>
-          <Text style={styles.bookBtnText}>View & Book</Text>
-          <Feather name="arrow-right" size={14} color="#FFF" />
+          <View style={styles.bookBtn}>
+            <Text style={styles.bookBtnText}>View & Book</Text>
+            <Feather name="arrow-right" size={14} color="#FFF" />
+          </View>
         </View>
       </View>
     </Pressable>
@@ -122,10 +132,24 @@ export default function StorageCard({ facility }: { facility: StorageFacility })
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    overflow: "hidden" as const,
+    marginBottom: 16,
+    // Add subtle shadow for premium feel
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  facilityImage: {
+    width: "100%" as const,
+    height: 160,
+  },
+  cardContent: {
+    padding: 16,
   },
   pressed: {
     opacity: 0.95,
@@ -141,7 +165,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "NunitoSans_700Bold",
     color: Colors.text,
     flex: 1,
@@ -166,7 +190,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   locationText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "NunitoSans_400Regular",
     color: Colors.textTertiary,
     flex: 1,
@@ -208,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: Colors.surfaceElevated,
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   infoItem: {
     flexDirection: "row" as const,
@@ -231,20 +255,20 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
   availDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
   },
   capacityBar: {
-    height: 4,
+    height: 6,
     backgroundColor: Colors.borderLight,
-    borderRadius: 2,
+    borderRadius: 3,
     marginBottom: 12,
     overflow: "hidden" as const,
   },
   capacityFill: {
     height: "100%" as const,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   footer: {
     flexDirection: "row" as const,
@@ -253,20 +277,20 @@ const styles = StyleSheet.create({
   },
   capacityText: {
     fontSize: 12,
-    fontFamily: "NunitoSans_400Regular",
+    fontFamily: "NunitoSans_600SemiBold",
     color: Colors.textSecondary,
   },
   bookBtn: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
-    gap: 4,
+    gap: 6,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
   bookBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "NunitoSans_700Bold",
     color: "#FFFFFF",
   },

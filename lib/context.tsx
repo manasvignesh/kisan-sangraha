@@ -25,6 +25,7 @@ interface AppContextValue {
   bookings: BookingType[];
   addBooking: (data: any) => Promise<void>;
   addFacility: (data: any) => Promise<void>;
+  updateFacilityPrice: (facilityId: string, newPrice: number) => Promise<void>;
   updateFacilityCapacity: (facilityId: string, quantityBooked: number) => Promise<void>;
   setFacilityAvailability: (facilityId: string, newAvailableCapacity: number) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: string) => Promise<void>;
@@ -243,6 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/facilities"] });
     },
   });
 
@@ -272,6 +274,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       bookings,
       addBooking: async (data: any) => { await createBookingMutation.mutateAsync(data); },
       addFacility: async (data: any) => { await addFacilityMutation.mutateAsync(data); },
+      updateFacilityPrice: async (facilityId: string, newPrice: number) => {
+        await updateFacilityMutation.mutateAsync({ id: facilityId, pricePerKgPerDay: newPrice });
+      },
       updateFacilityCapacity: async (facilityId: string, newPrice: number) => {
         await updateFacilityMutation.mutateAsync({ id: facilityId, pricePerKgPerDay: newPrice });
       },
